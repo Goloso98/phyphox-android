@@ -42,6 +42,7 @@ public class ExperimentRepository{
 
     public void addExperiment(ExperimentShortInfo shortInfo, Activity parent) {
         AssetExperimentLoader assetExperimentLoader = new AssetExperimentLoader(parent, this);
+        assetExperimentLoader.addBluetoothInfos(shortInfo);
         assetExperimentLoader.addExperiment(shortInfo);
     }
 
