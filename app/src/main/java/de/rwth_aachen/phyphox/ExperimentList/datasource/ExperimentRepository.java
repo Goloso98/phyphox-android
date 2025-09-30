@@ -55,6 +55,7 @@ public class ExperimentRepository{
 
         assetExperimentLoader.loadAndAddExperimentsFromLocalFiles();
         assetExperimentLoader.loadAndAddExperimentsFromAssets();
+        assetExperimentLoader.loadAndAddExperimentsFromHiddenBluetoothAssets();
 
         addExperimentCategoriesToLinearLayout(parent.findViewById(R.id.experimentList), parent.getResources());
     }
