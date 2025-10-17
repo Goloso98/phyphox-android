@@ -56,7 +56,7 @@ public class GraphView extends View {
     }
 
     public enum TouchMode {
-        off, zoom, pick;
+        off, zoom, pick, calibrate;
     }
 
     interface PointInfo {
@@ -316,13 +316,12 @@ public class GraphView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        switch (touchMode) {
-            case zoom:
-                return onTouchEventZoom(event);
-            case pick:
-                return onTouchEventPick(event);
-        }
-        return super.onTouchEvent(event);
+        return switch (touchMode) {
+            case zoom -> onTouchEventZoom(event);
+            case pick -> onTouchEventPick(event);
+            case calibrate -> onTouchEventCalibrate(event);
+            default -> super.onTouchEvent(event);
+        };
     }
 
     private void highlightNearestPoint(float x, float y, int index) {
@@ -472,6 +471,11 @@ public class GraphView extends View {
                 break;
             }
         }
+
+        return true;
+    }
+
+    private boolean onTouchEventCalibrate(MotionEvent event){
 
         return true;
     }

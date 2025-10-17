@@ -57,6 +57,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     View rootView;
     FrameLayout graphFrame;
 
+    private boolean calibrationMode = true;
+
     private class Marker {
         boolean active = false;
         float viewX, viewY;
@@ -121,6 +123,9 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         });
 
         toolbar.inflateMenu(R.menu.graph_menu);
+
+        toolbar.getMenu().getItem(2).setVisible(calibrationMode);
+
         toolbar.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
@@ -130,6 +135,9 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                         return true;
                     case R.id.graph_tools_pick:
                         graphView.setTouchMode(GraphView.TouchMode.pick);
+                        return true;
+                    case R.id.graph_tools_calibrate:
+                        graphView.setTouchMode(GraphView.TouchMode.calibrate);
                         return true;
                     case R.id.graph_tools_more:
                         PopupMenu popup = new PopupMenu(getContext(), findViewById(R.id.graph_tools_more));
