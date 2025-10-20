@@ -7,6 +7,8 @@ import android.content.DialogInterface;
 import android.content.res.ColorStateList;
 import android.graphics.Point;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.TypedValue;
@@ -14,7 +16,9 @@ import android.view.Gravity;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.ImageView;
@@ -38,9 +42,12 @@ import androidx.core.widget.ImageViewCompat;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 
+import java.util.ArrayList;
+import java.util.List;
+
 import de.rwth_aachen.phyphox.Helper.Helper;
 
-public class InteractiveGraphView extends RelativeLayout implements GraphView.PointInfo {
+public class InteractiveGraphView extends RelativeLayout implements GraphView.PointInfo, SpectroscopyCalibrationManager.SpectroscopyCalibrationDelegate {
 
     private boolean interactive = false;
     private boolean linearRegression = false;
@@ -92,6 +99,9 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     public PopupWindow popupWindowInfo = null;
     TextView popupWindowText = null;
     MarkerOverlayView markerOverlayView;
+    private SpectroscopyCalibrationManager spectroscopyCalibrationManager;
+    private TextView spectroscopyStatusLabel;
+    private List<View> calibrationMarkerViews = new ArrayList<>();
 
     public InteractiveGraphView(Context context) {
         super(context);
@@ -135,16 +145,13 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                         graphView.setTouchMode(GraphView.TouchMode.zoom);
                         return true;
                     case R.id.graph_tools_pick:
-                        if(calibrationMode){
-                            removePopupInfo();
-                            markerOverlayView.update(null, null);
-                        }
+                        if(calibrationMode) removePopUpAndMarkerOverlayView();
                         graphView.setTouchMode(GraphView.TouchMode.pick);
                         return true;
                     case R.id.graph_tools_calibrate:
-                        removePopupInfo();
-                        markerOverlayView.update(null, null);
+                        removePopUpAndMarkerOverlayView();
                         graphView.setTouchMode(GraphView.TouchMode.calibrate);
+                        spectroscopyCalibrationManager.startCalibration();
                         return true;
                     case R.id.graph_tools_more:
                         PopupMenu popup = createGraphToolPopUpMenu();
@@ -228,6 +235,34 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                 ViewGroup.LayoutParams.MATCH_PARENT));
         markerOverlayView.setGraphSetup(graphView.graphSetup);
         graphFrame.addView(markerOverlayView);
+
+        // Initialize spectroscopy calibration manager
+        spectroscopyCalibrationManager = new SpectroscopyCalibrationManager(context);
+        spectroscopyCalibrationManager.setDelegate(this);
+
+        // Add spectroscopy status label
+        spectroscopyStatusLabel = new TextView(context);
+        spectroscopyStatusLabel.setLayoutParams(new RelativeLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        spectroscopyStatusLabel.setVisibility(GONE);
+        spectroscopyStatusLabel.setPadding(16, 8, 16, 8);
+        spectroscopyStatusLabel.setTextSize(14);
+        if (Helper.isDarkTheme(getResources())) {
+            spectroscopyStatusLabel.setBackgroundColor(getResources().getColor(R.color.phyphox_black_50));
+            spectroscopyStatusLabel.setTextColor(getResources().getColor(R.color.phyphox_white_100));
+        } else {
+            spectroscopyStatusLabel.setBackgroundColor(getResources().getColor(R.color.phyphox_white_100));
+            spectroscopyStatusLabel.setTextColor(getResources().getColor(R.color.phyphox_black_100));
+        }
+
+        RelativeLayout.LayoutParams statusParams = (RelativeLayout.LayoutParams) spectroscopyStatusLabel.getLayoutParams();
+        statusParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+        statusParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
+        statusParams.topMargin = 50;
+        spectroscopyStatusLabel.setLayoutParams(statusParams);
+
+        this.addView(spectroscopyStatusLabel);
     }
 
     private PopupMenu createGraphToolPopUpMenu(){
@@ -250,6 +285,11 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         popup.getMenu().findItem(R.id.graph_tools_linear_fit).setChecked(linearRegression);
         return popup;
 
+    }
+
+    private void removePopUpAndMarkerOverlayView(){
+        removePopupInfo();
+        markerOverlayView.update(null, null);
     }
 
     private void setExpandCollapseImageColor(Context context) {
@@ -483,9 +523,31 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             View pointInfoView = inflate(getContext(), R.layout.point_info, null);
             popupWindowText = pointInfoView.findViewById(R.id.pointInfoText);
             LinearLayout calibrationConfirmationView = pointInfoView.findViewById(R.id.lnrCalibrationConfirmation);
-            TextView textView = pointInfoView.findViewById(R.id.pointInfoConfirmationText);
+            TextView pointConfirmationTextView = pointInfoView.findViewById(R.id.pointInfoConfirmationText);
+            Button btnContinue = pointInfoView.findViewById(R.id.btnContinue);
+            Button btnCancel = pointInfoView.findViewById(R.id.btnCancel);
+            btnContinue.setOnClickListener(view -> {
+                // Get the current marker position
+                Marker activeMarker = marker[0].active ? marker[0] : marker[1];
+                if (activeMarker.active) {
+                    onCalibrationPointSelected(
+                            activeMarker.viewX,
+                            activeMarker.viewY,
+                            activeMarker.dataX,
+                            activeMarker.dataY
+                    );
+                    popupWindowInfo.dismiss();
+                    popupWindowInfo = null;
+                }
+            });
+
+            btnCancel.setOnClickListener(view -> {
+                popupWindowInfo.dismiss();
+                popupWindowInfo = null;
+            });
             if(toolbar.getSelectedItemId() == R.id.graph_tools_calibrate){
                 calibrationConfirmationView.setVisibility(VISIBLE);
+                pointConfirmationTextView.setText(getResources().getString(R.string.spectroscopy_confirm_point));
             } else {
                 calibrationConfirmationView.setVisibility(GONE);
             }
@@ -497,18 +559,24 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             if(Helper.isDarkTheme(getResources())){
                 pointInfoView.setBackgroundColor(getResources().getColor(R.color.phyphox_white_100));
                 popupWindowText.setTextColor(getResources().getColor(R.color.phyphox_black_100));
-                textView.setTextColor(getResources().getColor(R.color.phyphox_black_100));
+                pointConfirmationTextView.setTextColor(getResources().getColor(R.color.phyphox_black_100));
             } else{
                 pointInfoView.setBackgroundColor(getResources().getColor(R.color.phyphox_black_100));
                 popupWindowText.setTextColor(getResources().getColor(R.color.phyphox_white_100));
-                textView.setTextColor(getResources().getColor(R.color.phyphox_white_100));
+                pointConfirmationTextView.setTextColor(getResources().getColor(R.color.phyphox_white_100));
             }
             if (Build.VERSION.SDK_INT >= 21){
                 popupWindowInfo.setElevation(4.0f);
             }
             popupWindowInfo.setOutsideTouchable(false);
-            popupWindowInfo.setTouchable(false);
-            popupWindowInfo.setFocusable(false);
+            if(toolbar.getSelectedItemId() == R.id.graph_tools_calibrate){
+                popupWindowInfo.setTouchable(true);
+                popupWindowInfo.setFocusable(true);
+            } else {
+                popupWindowInfo.setTouchable(false);
+                popupWindowInfo.setFocusable(false);
+            }
+
             popupWindowInfo.showAtLocation(graphFrame, Gravity.BOTTOM | Gravity.CENTER, x, y);
         } else {
             popupWindowInfo.update(x, y, -1, -1);
@@ -681,8 +749,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
         }
         else {
-            removePopupInfo();
-            markerOverlayView.update(null, null);
+            removePopUpAndMarkerOverlayView();
         }
     }
 
@@ -720,5 +787,164 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         if(this.graphView != null)
             this.graphView.setShowColorScaleForColorMapChart(showColorScale);
     }
+    @Override
+    public void spectroscopyUnCalibrated(SpectroscopyCalibrationManager manager) {
+        spectroscopyStatusLabel.setText("");
+        spectroscopyStatusLabel.setVisibility(GONE);
+        clearCalibrationMarkers();
+        markerOverlayView.update(null, null);
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidStart(SpectroscopyCalibrationManager manager) {
+        spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_tap_first_point));
+        spectroscopyStatusLabel.setVisibility(VISIBLE);
+        clearCalibrationMarkers();
+        markerOverlayView.update(null, null);
+        graphView.resetPicks();
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidUpdatePoints(SpectroscopyCalibrationManager manager,
+                                                       List<SpectroscopyCalibrationManager.CalibrationPoint> points,
+                                                       SpectroscopyCalibrationManager.CalibrationState state) {
+
+        switch (state) {
+            case FIRST_POINT_SELECTED:
+                spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_tap_second_point));
+                showCalibrationPointMarkers(points);
+                break;
+            case SECOND_POINT_SELECTED:
+                spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_calculating));
+                showCalibrationPointMarkers(points);
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidComplete(SpectroscopyCalibrationManager manager,
+                                                   double slope, double intercept) {
+        String calibrationInfo = manager.getCalibrationInfo();
+        if (calibrationInfo != null) {
+            spectroscopyStatusLabel.setText(calibrationInfo);
+        }
+
+        // Update calibration parameters in your graph descriptor
+        // graphView.descriptor.calibrationSlope.replaceValues(new double[]{slope});
+        // graphView.descriptor.calibrationIntercept.replaceValues(new double[]{intercept});
+
+        clearCalibrationMarkers();
+        markerOverlayView.update(null, null);
+
+        // Show success message
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            spectroscopyStatusLabel.setVisibility(GONE);
+        }, 3000);
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidReset(SpectroscopyCalibrationManager manager) {
+        spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_tap_first_point));
+        clearCalibrationMarkers();
+        markerOverlayView.update(null, null);
+        graphView.resetPicks();
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidDismiss(SpectroscopyCalibrationManager manager) {
+        clearCalibrationMarkers();
+    }
+
+    @Override
+    public void spectroscopyCalibrationShouldPresentDialog(SpectroscopyCalibrationManager manager,
+                                                            AlertDialog dialog) {
+        dialog.show();
+    }
+
+    @Override
+    public void spectroscopyDidFailWithError(SpectroscopyCalibrationManager manager, String error) {
+        spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_calibration_failed));
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle(getResources().getString(R.string.error))
+                .setMessage(error)
+                .setPositiveButton(getResources().getString(R.string.ok), null)
+                .show();
+    }
+
+    // Method to handle calibration point selection from GraphView
+    public void onCalibrationPointSelected(float viewX, float viewY, float dataX, float dataY) {
+        // Add reference point to calibration manager
+        spectroscopyCalibrationManager.addCalibrationReferencePoint(dataX,
+                calibrationMarkerViews.size());
+
+        // Show marker at the selected point
+        addCalibrationMarker(viewX, viewY);
+
+        // Request to add calibrated point (this will show the dialog)
+        spectroscopyCalibrationManager.requestToAddCalibratedPoint(dataX);
+    }
+
+    // Helper method to add calibration marker visual
+    private void addCalibrationMarker(float x, float y) {
+        View markerView = new View(getContext());
+        int markerSize = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
+                12, getResources().getDisplayMetrics());
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(markerSize, markerSize);
+        markerView.setLayoutParams(params);
+        markerView.setBackgroundResource(R.drawable.calibration_marker); // Create a circular drawable
+
+        // Set marker color based on point number
+        int color = calibrationMarkerViews.isEmpty() ?
+                getResources().getColor(R.color.phyphox_primary) :
+                getResources().getColor(R.color.phyphox_blue_40);
+        markerView.setBackgroundTintList(ColorStateList.valueOf(color));
+
+        markerView.setX(x - markerSize / 2);
+        markerView.setY(y - markerSize / 2);
+
+        graphFrame.addView(markerView);
+        calibrationMarkerViews.add(markerView);
+    }
+
+    // Helper method to show calibration point markers
+    private void showCalibrationPointMarkers(
+            List<SpectroscopyCalibrationManager.CalibrationPoint> points) {
+        clearCalibrationMarkers();
+
+        for (int i = 0; i < points.size(); i++) {
+            SpectroscopyCalibrationManager.CalibrationPoint point = points.get(i);
+
+            // Convert data coordinates to view coordinates
+            float viewX = (float) graphView.dataXToViewX(point.pixelPosition);
+            float viewY = graphView.getHeight() / 2f; // Center vertically for spectroscopy
+
+            addCalibrationMarker(viewX, viewY);
+        }
+    }
+
+    // Clear all calibration markers
+    private void clearCalibrationMarkers() {
+        for (View marker : calibrationMarkerViews) {
+            graphFrame.removeView(marker);
+        }
+        calibrationMarkerViews.clear();
+    }
+
+    // Add this method to reset calibration
+    public void resetSpectroscopyCalibration() {
+        if (spectroscopyCalibrationManager != null) {
+            spectroscopyCalibrationManager.resetCalibration();
+        }
+    }
+
+    // Add this method to get calibration manager (if needed from outside)
+    public SpectroscopyCalibrationManager getSpectroscopyCalibrationManager() {
+        return spectroscopyCalibrationManager;
+    }
+
 
 }

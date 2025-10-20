@@ -20,6 +20,16 @@
     <string name="graph_difference_label">Difference</string>
     <string name="graph_fit_label">Linear fit: y = a x + b</string>
     <string name="confirmCalibrationPoint">Do you want to continue with this calibration point?</string>
+    <string name="enterFirstCalibrationPoint">First Calibration Point</string>
+    <string name="enterSecondCalibrationPoint">SecondCalibrationPoint</string>
+    <string name="enterWavelengthValue">Enter the wavelength (nm) for pixel intensity </string>
+    <string name="spectroscopyWavelengthPlaceholder">Wavelength (nm)</string>
+    <string name="spectroscopy_tap_first_point">Tap to select first calibration point</string>
+    <string name="spectroscopy_tap_second_point">Tap to select second calibration point</string>
+    <string name="spectroscopy_calculating">Calculating calibration…</string>
+    <string name="spectroscopy_calibration_failed">Calibration failed</string>
+    <string name="spectroscopy_confirm_point">Confirm this calibration point?</string>
+    <string name="error">Error</string>
     <string name="applyZoomTitle">Apply zoom</string>
     <string name="applyZoomExplanation">As you are closing the interactive mode of this graph, you can select if you want to keep your zoom.</string>
     <string name="applyZoomAdvanced">Advanced options</string>
