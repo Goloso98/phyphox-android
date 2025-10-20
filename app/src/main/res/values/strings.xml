@@ -19,6 +19,7 @@
     <string name="graph_slope_label">Slope</string>
     <string name="graph_difference_label">Difference</string>
     <string name="graph_fit_label">Linear fit: y = a x + b</string>
+    <string name="confirmCalibrationPoint">Do you want to continue with this calibration point?</string>
     <string name="applyZoomTitle">Apply zoom</string>
     <string name="applyZoomExplanation">As you are closing the interactive mode of this graph, you can select if you want to keep your zoom.</string>
     <string name="applyZoomAdvanced">Advanced options</string>

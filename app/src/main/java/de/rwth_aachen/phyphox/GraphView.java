@@ -477,6 +477,51 @@ public class GraphView extends View {
 
     private boolean onTouchEventCalibrate(MotionEvent event){
 
+        if (pointInfoListener == null)
+            return true;
+
+        final float x = event.getX();
+        final float y = event.getY();
+
+        if (!processingGesture
+                && (!(x > graphSetup.plotBoundL && x < graphSetup.plotBoundL + graphSetup.plotBoundW && y > graphSetup.plotBoundT && y < graphSetup.plotBoundT + graphSetup.plotBoundH)))
+            return super.onTouchEvent(event);
+
+        final int action = event.getAction();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN: {
+                processingGesture = true;
+
+                pickXStart = x;
+                pickYStart = y;
+
+                pickedPointIndex[1] = -1;
+                pointInfoListener.hidePointInfo(1);
+                highlightNearestPoint(x, y, 0);
+
+                getParent().requestDisallowInterceptTouchEvent(true);
+                break;
+            }
+            case MotionEvent.ACTION_MOVE: {
+
+                getParent().requestDisallowInterceptTouchEvent(false);
+                break;
+            }
+            case MotionEvent.ACTION_UP: {
+
+                processingGesture = false;
+
+                getParent().requestDisallowInterceptTouchEvent(false);
+                break;
+            }
+            case MotionEvent.ACTION_CANCEL: {
+
+                getParent().requestDisallowInterceptTouchEvent(false);
+                break;
+            }
+        }
+
         return true;
     }
 

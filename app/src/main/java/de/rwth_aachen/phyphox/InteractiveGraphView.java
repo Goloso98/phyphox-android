@@ -18,6 +18,7 @@ import android.widget.CompoundButton;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.PopupWindow;
 import android.widget.RadioButton;
@@ -134,84 +135,69 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                         graphView.setTouchMode(GraphView.TouchMode.zoom);
                         return true;
                     case R.id.graph_tools_pick:
+                        if(calibrationMode){
+                            removePopupInfo();
+                            markerOverlayView.update(null, null);
+                        }
                         graphView.setTouchMode(GraphView.TouchMode.pick);
                         return true;
                     case R.id.graph_tools_calibrate:
+                        removePopupInfo();
+                        markerOverlayView.update(null, null);
                         graphView.setTouchMode(GraphView.TouchMode.calibrate);
                         return true;
                     case R.id.graph_tools_more:
-                        PopupMenu popup = new PopupMenu(getContext(), findViewById(R.id.graph_tools_more));
-                        popup.getMenuInflater().inflate(R.menu.graph_tools_menu, popup.getMenu());
-                        popup.getMenu().findItem(R.id.graph_tools_system_time).setVisible((graphView.timeOnX || graphView.timeOnY) && graphView.style[0] != GraphView.Style.mapXY);
-                        popup.getMenu().findItem(R.id.graph_tools_system_time).setChecked(graphView.absoluteTime);
-                        popup.getMenu().findItem(R.id.graph_tools_follow).setChecked(graphView.zoomState.follows);
-                        popup.getMenu().findItem(R.id.graph_tools_follow).setVisible(graphView.graphSetup.incrementalX);
-                        popup.getMenu().findItem(R.id.graph_tools_export).setVisible(dataExport != null);
-                        popup.getMenu().findItem(R.id.graph_tools_log_x).setVisible(allowLogX);
-                        popup.getMenu().findItem(R.id.graph_tools_log_y).setVisible(allowLogY);
-                        popup.getMenu().findItem(R.id.graph_tools_log_x).setChecked(graphView.logX);
-                        popup.getMenu().findItem(R.id.graph_tools_log_y).setChecked(graphView.logY);
-                        boolean hasMap = false;
-                        for (GraphView.Style style : graphView.style)
-                            if (style == GraphView.Style.mapXY)
-                                hasMap = true;
-                        popup.getMenu().findItem(R.id.graph_tools_linear_fit).setVisible(!(allowLogX || allowLogY || hasMap));
-                        popup.getMenu().findItem(R.id.graph_tools_linear_fit).setChecked(linearRegression);
-
-                        popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-                            @Override
-                            public boolean onMenuItemClick(MenuItem menuItem) {
-                                int id = menuItem.getItemId();
-                                if (id == R.id.graph_tools_linear_fit) {
-                                    linearRegression = !linearRegression;
-                                    graphView.resetPicks();
-                                    updateInfo();
-                                } else if (id == R.id.graph_tools_system_time) {
-                                    graphView.setAbsoluteTime(!graphView.absoluteTime);
-                                    graphView.invalidate();
-                                } else if (id == R.id.graph_tools_reset) {
-                                    graphView.zoomState.follows = graphView.followX;
-                                    if (graphView.followX) {
-                                        graphView.zoomState.minX = graphView.minX;
-                                        graphView.zoomState.maxX = graphView.maxX;
-                                    } else {
-                                        graphView.zoomState.minX = Double.NaN;
-                                        graphView.zoomState.maxX = Double.NaN;
-                                    }
-                                    graphView.zoomState.minY = Double.NaN;
-                                    graphView.zoomState.maxY = Double.NaN;
-                                    graphView.zoomState.minZ = Double.NaN;
-                                    graphView.zoomState.maxZ = Double.NaN;
-                                    graphView.invalidate();
-                                } else if (id == R.id.graph_tools_follow) {
-                                    if (Double.isNaN(graphView.zoomState.minX) || Double.isNaN(graphView.zoomState.maxX)) {
-                                        graphView.zoomState.minX = graphView.minX;
-                                        graphView.zoomState.maxX = graphView.maxX;
-                                    }
-                                    graphView.zoomState.follows = !graphView.zoomState.follows;
-                                    graphView.invalidate();
-                                } else if (id == R.id.graph_tools_export) {
-                                    Context ctx = getContext();
-                                    Activity act = null;
-                                    while (ctx instanceof ContextWrapper) {
-                                        if (ctx instanceof Activity) {
-                                            act = (Activity) ctx;
-                                        }
-                                        ctx = ((ContextWrapper) ctx).getBaseContext();
-                                    }
-                                    if (act != null)
-                                        dataExport.export(act, true);
-                                } else if (id == R.id.graph_tools_log_x) {
-                                    graphView.setLogScale(!graphView.logX, graphView.logY, graphView.logZ);
-                                    graphView.invalidate();
-                                } else if (id == R.id.graph_tools_log_y) {
-                                    graphView.setLogScale(graphView.logX, !graphView.logY, graphView.logZ);
-                                    graphView.invalidate();
+                        PopupMenu popup = createGraphToolPopUpMenu();
+                        popup.setOnMenuItemClickListener(menuItem -> {
+                            int id = menuItem.getItemId();
+                            if (id == R.id.graph_tools_linear_fit) {
+                                linearRegression = !linearRegression;
+                                graphView.resetPicks();
+                                updateInfo();
+                            } else if (id == R.id.graph_tools_system_time) {
+                                graphView.setAbsoluteTime(!graphView.absoluteTime);
+                                graphView.invalidate();
+                            } else if (id == R.id.graph_tools_reset) {
+                                graphView.zoomState.follows = graphView.followX;
+                                if (graphView.followX) {
+                                    graphView.zoomState.minX = graphView.minX;
+                                    graphView.zoomState.maxX = graphView.maxX;
+                                } else {
+                                    graphView.zoomState.minX = Double.NaN;
+                                    graphView.zoomState.maxX = Double.NaN;
                                 }
-                                return false;
+                                graphView.zoomState.minY = Double.NaN;
+                                graphView.zoomState.maxY = Double.NaN;
+                                graphView.zoomState.minZ = Double.NaN;
+                                graphView.zoomState.maxZ = Double.NaN;
+                                graphView.invalidate();
+                            } else if (id == R.id.graph_tools_follow) {
+                                if (Double.isNaN(graphView.zoomState.minX) || Double.isNaN(graphView.zoomState.maxX)) {
+                                    graphView.zoomState.minX = graphView.minX;
+                                    graphView.zoomState.maxX = graphView.maxX;
+                                }
+                                graphView.zoomState.follows = !graphView.zoomState.follows;
+                                graphView.invalidate();
+                            } else if (id == R.id.graph_tools_export) {
+                                Context ctx = getContext();
+                                Activity act = null;
+                                while (ctx instanceof ContextWrapper) {
+                                    if (ctx instanceof Activity) {
+                                        act = (Activity) ctx;
+                                    }
+                                    ctx = ((ContextWrapper) ctx).getBaseContext();
+                                }
+                                if (act != null)
+                                    dataExport.export(act, true);
+                            } else if (id == R.id.graph_tools_log_x) {
+                                graphView.setLogScale(!graphView.logX, graphView.logY, graphView.logZ);
+                                graphView.invalidate();
+                            } else if (id == R.id.graph_tools_log_y) {
+                                graphView.setLogScale(graphView.logX, !graphView.logY, graphView.logZ);
+                                graphView.invalidate();
                             }
+                            return false;
                         });
-
                         popup.show();
                 }
                 return false;
@@ -244,6 +230,28 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         graphFrame.addView(markerOverlayView);
     }
 
+    private PopupMenu createGraphToolPopUpMenu(){
+        PopupMenu popup = new PopupMenu(getContext(), findViewById(R.id.graph_tools_more));
+        popup.getMenuInflater().inflate(R.menu.graph_tools_menu, popup.getMenu());
+        popup.getMenu().findItem(R.id.graph_tools_system_time).setVisible((graphView.timeOnX || graphView.timeOnY) && graphView.style[0] != GraphView.Style.mapXY);
+        popup.getMenu().findItem(R.id.graph_tools_system_time).setChecked(graphView.absoluteTime);
+        popup.getMenu().findItem(R.id.graph_tools_follow).setChecked(graphView.zoomState.follows);
+        popup.getMenu().findItem(R.id.graph_tools_follow).setVisible(graphView.graphSetup.incrementalX);
+        popup.getMenu().findItem(R.id.graph_tools_export).setVisible(dataExport != null);
+        popup.getMenu().findItem(R.id.graph_tools_log_x).setVisible(allowLogX);
+        popup.getMenu().findItem(R.id.graph_tools_log_y).setVisible(allowLogY);
+        popup.getMenu().findItem(R.id.graph_tools_log_x).setChecked(graphView.logX);
+        popup.getMenu().findItem(R.id.graph_tools_log_y).setChecked(graphView.logY);
+        boolean hasMap = false;
+        for (GraphView.Style style : graphView.style)
+            if (style == GraphView.Style.mapXY)
+                hasMap = true;
+        popup.getMenu().findItem(R.id.graph_tools_linear_fit).setVisible(!(allowLogX || allowLogY || hasMap));
+        popup.getMenu().findItem(R.id.graph_tools_linear_fit).setChecked(linearRegression);
+        return popup;
+
+    }
+
     private void setExpandCollapseImageColor(Context context) {
         if(Helper.isDarkTheme(getResources())){
             ImageViewCompat.setImageTintList(collapseImage, ColorStateList.valueOf(ContextCompat.getColor(context, R.color.phyphox_white_100)));
@@ -255,8 +263,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             ImageViewCompat.setImageTintList(collapseImage, ColorStateList.valueOf(ContextCompat.getColor(context, R.color.phyphox_black_100)));
             ImageViewCompat.setImageTintList(expandImage, ColorStateList.valueOf(ContextCompat.getColor(context, R.color.phyphox_black_100)));
             toolbar.setBackgroundColor(getResources().getColor(R.color.phyphox_white_100));
-
-
         }
     }
 
@@ -475,7 +481,14 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     private void setPopupInfo(int x, int y, String text) {
         if (popupWindowInfo == null) {
             View pointInfoView = inflate(getContext(), R.layout.point_info, null);
-            popupWindowText = pointInfoView.findViewById(R.id.point_info_text);
+            popupWindowText = pointInfoView.findViewById(R.id.pointInfoText);
+            LinearLayout calibrationConfirmationView = pointInfoView.findViewById(R.id.lnrCalibrationConfirmation);
+            TextView textView = pointInfoView.findViewById(R.id.pointInfoConfirmationText);
+            if(toolbar.getSelectedItemId() == R.id.graph_tools_calibrate){
+                calibrationConfirmationView.setVisibility(VISIBLE);
+            } else {
+                calibrationConfirmationView.setVisibility(GONE);
+            }
             popupWindowInfo = new PopupWindow(
                     pointInfoView,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -484,9 +497,11 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             if(Helper.isDarkTheme(getResources())){
                 pointInfoView.setBackgroundColor(getResources().getColor(R.color.phyphox_white_100));
                 popupWindowText.setTextColor(getResources().getColor(R.color.phyphox_black_100));
+                textView.setTextColor(getResources().getColor(R.color.phyphox_black_100));
             } else{
                 pointInfoView.setBackgroundColor(getResources().getColor(R.color.phyphox_black_100));
                 popupWindowText.setTextColor(getResources().getColor(R.color.phyphox_white_100));
+                textView.setTextColor(getResources().getColor(R.color.phyphox_white_100));
             }
             if (Build.VERSION.SDK_INT >= 21){
                 popupWindowInfo.setElevation(4.0f);
@@ -586,7 +601,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             setPopupInfo(infoX, infoY, sb.toString());
 
 
-        } else if (marker[0].active && marker[1].active) {
+        }
+        else if (marker[0].active && marker[1].active) {
 
             Point[] points = new Point[2];
             points[0] = new Point(Math.round(marker[0].viewX), Math.round(marker[0].viewY));
@@ -631,7 +647,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
             setPopupInfo(infoX, infoY, sb.toString());
 
-        } else if (marker[0].active || marker[1].active) {
+        }
+        else if (marker[0].active || marker[1].active) {
 
             int pos[] = new int[2];
             graphView.getLocationInWindow(pos);
@@ -662,7 +679,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
             setPopupInfo(infoX, infoY, sb.toString());
 
-        } else {
+        }
+        else {
             removePopupInfo();
             markerOverlayView.update(null, null);
         }
