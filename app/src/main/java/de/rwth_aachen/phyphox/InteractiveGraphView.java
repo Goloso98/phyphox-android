@@ -831,17 +831,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             spectroscopyStatusLabel.setText(calibrationInfo);
         }
 
-        // Update calibration parameters in your graph descriptor
-        // graphView.descriptor.calibrationSlope.replaceValues(new double[]{slope});
-        // graphView.descriptor.calibrationIntercept.replaceValues(new double[]{intercept});
-
-        clearCalibrationMarkers();
         markerOverlayView.update(null, null);
 
-        // Show success message
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            spectroscopyStatusLabel.setVisibility(GONE);
-        }, 3000);
     }
 
     @Override
@@ -880,9 +871,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         spectroscopyCalibrationManager.addCalibrationReferencePoint(dataX,
                 calibrationMarkerViews.size());
 
-        // Show marker at the selected point
-        addCalibrationMarker(viewX, viewY);
-
         // Request to add calibrated point (this will show the dialog)
         spectroscopyCalibrationManager.requestToAddCalibratedPoint(dataX);
     }
@@ -890,21 +878,13 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     // Helper method to add calibration marker visual
     private void addCalibrationMarker(float x, float y) {
         View markerView = new View(getContext());
-        int markerSize = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
-                12, getResources().getDisplayMetrics());
+        int markerHeight = plotRenderer.getPlotBoundH();
 
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(markerSize, markerSize);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(1, markerHeight);
         markerView.setLayoutParams(params);
-        markerView.setBackgroundResource(R.drawable.calibration_marker); // Create a circular drawable
+        markerView.setBackgroundColor(getResources().getColor(R.color.phyphox_red));
 
-        // Set marker color based on point number
-        int color = calibrationMarkerViews.isEmpty() ?
-                getResources().getColor(R.color.phyphox_primary) :
-                getResources().getColor(R.color.phyphox_blue_40);
-        markerView.setBackgroundTintList(ColorStateList.valueOf(color));
-
-        markerView.setX(x - markerSize / 2);
-        markerView.setY(y - markerSize / 2);
+        markerView.setX(x);
 
         graphFrame.addView(markerView);
         calibrationMarkerViews.add(markerView);

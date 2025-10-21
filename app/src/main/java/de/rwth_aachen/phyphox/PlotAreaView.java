@@ -1286,6 +1286,10 @@ class PlotRenderer extends Thread implements TextureView.SurfaceTextureListener 
         }
     }
 
+    public int getPlotBoundH(){
+        return graphSetup.plotBoundH;
+    }
+
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture st, int width, int height) {
         synchronized (lock) {
