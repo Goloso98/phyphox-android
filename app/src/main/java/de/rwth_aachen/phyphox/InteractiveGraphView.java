@@ -522,7 +522,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         if (popupWindowInfo == null) {
             View pointInfoView = inflate(getContext(), R.layout.point_info, null);
             popupWindowText = pointInfoView.findViewById(R.id.pointInfoText);
-            LinearLayout calibrationConfirmationView = pointInfoView.findViewById(R.id.lnrCalibrationConfirmation);
             TextView pointConfirmationTextView = pointInfoView.findViewById(R.id.pointInfoConfirmationText);
             Button btnContinue = pointInfoView.findViewById(R.id.btnContinue);
             Button btnCancel = pointInfoView.findViewById(R.id.btnCancel);
@@ -546,10 +545,14 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                 popupWindowInfo = null;
             });
             if(toolbar.getSelectedItemId() == R.id.graph_tools_calibrate){
-                calibrationConfirmationView.setVisibility(VISIBLE);
+                pointConfirmationTextView.setVisibility(VISIBLE);
+                btnContinue.setVisibility(VISIBLE);
+                btnCancel.setVisibility(VISIBLE);
                 pointConfirmationTextView.setText(getResources().getString(R.string.spectroscopy_confirm_point));
             } else {
-                calibrationConfirmationView.setVisibility(GONE);
+                pointConfirmationTextView.setVisibility(GONE);
+                btnContinue.setVisibility(GONE);
+                btnCancel.setVisibility(GONE);
             }
             popupWindowInfo = new PopupWindow(
                     pointInfoView,
