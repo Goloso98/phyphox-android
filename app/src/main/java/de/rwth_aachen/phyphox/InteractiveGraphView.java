@@ -500,6 +500,9 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             graphView.setTouchMode(GraphView.TouchMode.zoom);
         else if (toolbar.getSelectedItemId() == R.id.graph_tools_pick)
             graphView.setTouchMode(GraphView.TouchMode.pick);
+        else if (toolbar.getSelectedItemId() == R.id.graph_tools_calibrate){
+            graphView.setTouchMode(GraphView.TouchMode.calibrate);
+        }
 
         toolbar.setVisibility(interactive ? VISIBLE : GONE);
 
