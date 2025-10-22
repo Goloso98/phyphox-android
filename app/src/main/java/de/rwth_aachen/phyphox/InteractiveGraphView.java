@@ -7,8 +7,6 @@ import android.content.DialogInterface;
 import android.content.res.ColorStateList;
 import android.graphics.Point;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.TypedValue;
@@ -18,11 +16,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CompoundButton;
-import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.PopupWindow;
 import android.widget.RadioButton;
@@ -102,6 +98,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     private SpectroscopyCalibrationManager spectroscopyCalibrationManager;
     private TextView spectroscopyStatusLabel;
     private List<View> calibrationMarkerViews = new ArrayList<>();
+    private boolean needsCalibrationMarkerUpdate = false;
 
     public InteractiveGraphView(Context context) {
         super(context);
@@ -236,6 +233,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         markerOverlayView.setGraphSetup(graphView.graphSetup);
         graphFrame.addView(markerOverlayView);
 
+        if(!calibrationMode) return;
+
         // Initialize spectroscopy calibration manager
         spectroscopyCalibrationManager = new SpectroscopyCalibrationManager(context);
         spectroscopyCalibrationManager.setDelegate(this);
@@ -263,6 +262,15 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         spectroscopyStatusLabel.setLayoutParams(statusParams);
 
         this.addView(spectroscopyStatusLabel);
+
+        // Since the height of the graph is updated during plot rendering, the update of
+        // the calibration confirmation marker height need to be readjusted after the rendering is complete.
+        plotRenderer.getGraphSetup().setOnRenderedPlotResizedListener(graphHeight -> {
+            if (needsCalibrationMarkerUpdate) {
+                updateCalibrationConfirmationMarkerWith(graphHeight);
+                needsCalibrationMarkerUpdate = false;
+            }
+        });
     }
 
     private PopupMenu createGraphToolPopUpMenu(){
@@ -495,6 +503,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             graphView.setTouchMode(GraphView.TouchMode.off);
             linearRegression = false;
             graphView.resetPicks();
+            resizeCalibrationConfirmationHeight();
         }
         else if (toolbar.getSelectedItemId() == R.id.graph_tools_pan)
             graphView.setTouchMode(GraphView.TouchMode.zoom);
@@ -502,10 +511,10 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             graphView.setTouchMode(GraphView.TouchMode.pick);
         else if (toolbar.getSelectedItemId() == R.id.graph_tools_calibrate){
             graphView.setTouchMode(GraphView.TouchMode.calibrate);
+            resizeCalibrationConfirmationHeight();
         }
 
         toolbar.setVisibility(interactive ? VISIBLE : GONE);
-
         expandImage.setVisibility(interactive ? INVISIBLE : VISIBLE);
         collapseImage.setVisibility(interactive ? VISIBLE : INVISIBLE);
 
@@ -867,32 +876,48 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                 .show();
     }
 
-    // Method to handle calibration point selection from GraphView
+
+    private void updateCalibrationConfirmationMarkerWith(int newHeight) {
+        if(!calibrationMarkerViews.isEmpty()){
+            for(View marker: calibrationMarkerViews){
+                marker.setVisibility(VISIBLE);
+                FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(1, newHeight);
+                marker.setLayoutParams(params);
+                marker.requestLayout();
+            }
+        }
+    }
+
+    private void resizeCalibrationConfirmationHeight(){
+        if(!calibrationMarkerViews.isEmpty()){
+            for(View marker: calibrationMarkerViews){
+                marker.setVisibility(GONE);
+                needsCalibrationMarkerUpdate = true;
+            }
+        }
+    }
+
     public void onCalibrationPointSelected(float viewX, float viewY, float dataX, float dataY) {
-        // Add reference point to calibration manager
         spectroscopyCalibrationManager.addCalibrationReferencePoint(dataX,
                 calibrationMarkerViews.size());
 
-        // Request to add calibrated point (this will show the dialog)
         spectroscopyCalibrationManager.requestToAddCalibratedPoint(dataX);
     }
 
-    // Helper method to add calibration marker visual
     private void addCalibrationMarker(float x, float y) {
-        View markerView = new View(getContext());
+        View calibrationConfirmationMarkerView = new View(getContext());
         int markerHeight = plotRenderer.getPlotBoundH();
 
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(1, markerHeight);
-        markerView.setLayoutParams(params);
-        markerView.setBackgroundColor(getResources().getColor(R.color.phyphox_red));
+        calibrationConfirmationMarkerView.setLayoutParams(params);
+        calibrationConfirmationMarkerView.setBackgroundColor(getResources().getColor(R.color.phyphox_red));
 
-        markerView.setX(x);
+        calibrationConfirmationMarkerView.setX(x);
 
-        graphFrame.addView(markerView);
-        calibrationMarkerViews.add(markerView);
+        graphFrame.addView(calibrationConfirmationMarkerView);
+        calibrationMarkerViews.add(calibrationConfirmationMarkerView);
     }
 
-    // Helper method to show calibration point markers
     private void showCalibrationPointMarkers(
             List<SpectroscopyCalibrationManager.CalibrationPoint> points) {
         clearCalibrationMarkers();
@@ -908,7 +933,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         }
     }
 
-    // Clear all calibration markers
     private void clearCalibrationMarkers() {
         for (View marker : calibrationMarkerViews) {
             graphFrame.removeView(marker);
@@ -916,14 +940,12 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         calibrationMarkerViews.clear();
     }
 
-    // Add this method to reset calibration
     public void resetSpectroscopyCalibration() {
         if (spectroscopyCalibrationManager != null) {
             spectroscopyCalibrationManager.resetCalibration();
         }
     }
 
-    // Add this method to get calibration manager (if needed from outside)
     public SpectroscopyCalibrationManager getSpectroscopyCalibrationManager() {
         return spectroscopyCalibrationManager;
     }
