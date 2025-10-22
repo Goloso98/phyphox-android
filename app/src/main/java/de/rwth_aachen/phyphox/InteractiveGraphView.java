@@ -161,7 +161,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                             } else if (id == R.id.graph_tools_system_time) {
                                 graphView.setAbsoluteTime(!graphView.absoluteTime);
                                 graphView.invalidate();
-                            } else if (id == R.id.graph_tools_reset) {
+                            }
+                            else if (id == R.id.graph_tools_reset) {
                                 graphView.zoomState.follows = graphView.followX;
                                 if (graphView.followX) {
                                     graphView.zoomState.minX = graphView.minX;
@@ -175,14 +176,16 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                                 graphView.zoomState.minZ = Double.NaN;
                                 graphView.zoomState.maxZ = Double.NaN;
                                 graphView.invalidate();
-                            } else if (id == R.id.graph_tools_follow) {
+                            }
+                            else if (id == R.id.graph_tools_follow) {
                                 if (Double.isNaN(graphView.zoomState.minX) || Double.isNaN(graphView.zoomState.maxX)) {
                                     graphView.zoomState.minX = graphView.minX;
                                     graphView.zoomState.maxX = graphView.maxX;
                                 }
                                 graphView.zoomState.follows = !graphView.zoomState.follows;
                                 graphView.invalidate();
-                            } else if (id == R.id.graph_tools_export) {
+                            }
+                            else if (id == R.id.graph_tools_export) {
                                 Context ctx = getContext();
                                 Activity act = null;
                                 while (ctx instanceof ContextWrapper) {
@@ -193,12 +196,17 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                                 }
                                 if (act != null)
                                     dataExport.export(act, true);
-                            } else if (id == R.id.graph_tools_log_x) {
+                            }
+                            else if (id == R.id.graph_tools_log_x) {
                                 graphView.setLogScale(!graphView.logX, graphView.logY, graphView.logZ);
                                 graphView.invalidate();
-                            } else if (id == R.id.graph_tools_log_y) {
+                            }
+                            else if (id == R.id.graph_tools_log_y) {
                                 graphView.setLogScale(graphView.logX, !graphView.logY, graphView.logZ);
                                 graphView.invalidate();
+                            }
+                            else  if(id == R.id.graph_reset_calibration){
+                                resetSpectroscopyCalibration();
                             }
                             return false;
                         });
@@ -285,6 +293,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         popup.getMenu().findItem(R.id.graph_tools_log_y).setVisible(allowLogY);
         popup.getMenu().findItem(R.id.graph_tools_log_x).setChecked(graphView.logX);
         popup.getMenu().findItem(R.id.graph_tools_log_y).setChecked(graphView.logY);
+        popup.getMenu().findItem(R.id.graph_reset_calibration).setVisible(calibrationMode);
         boolean hasMap = false;
         for (GraphView.Style style : graphView.style)
             if (style == GraphView.Style.mapXY)
