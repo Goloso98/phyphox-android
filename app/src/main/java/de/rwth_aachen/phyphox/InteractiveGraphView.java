@@ -571,14 +571,10 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             if (Build.VERSION.SDK_INT >= 21){
                 popupWindowInfo.setElevation(4.0f);
             }
+
+            popupWindowInfo.setFocusable(false);
             popupWindowInfo.setOutsideTouchable(false);
-            if(toolbar.getSelectedItemId() == R.id.graph_tools_calibrate){
-                popupWindowInfo.setTouchable(true);
-                popupWindowInfo.setFocusable(true);
-            } else {
-                popupWindowInfo.setTouchable(false);
-                popupWindowInfo.setFocusable(false);
-            }
+            popupWindowInfo.setTouchable(toolbar.getSelectedItemId() == R.id.graph_tools_calibrate);
 
             popupWindowInfo.showAtLocation(graphFrame, Gravity.BOTTOM | Gravity.CENTER, x, y);
         } else {
