@@ -139,16 +139,22 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 switch (item.getItemId()) {
                     case R.id.graph_tools_pan:
+                        if(calibrationMode){
+                            if(!graphView.isSpectroscopyCalibrated) spectroscopyCalibrationManager.resetCalibration();
+                        }
                         graphView.setTouchMode(GraphView.TouchMode.zoom);
                         return true;
                     case R.id.graph_tools_pick:
-                        if(calibrationMode) removePopUpAndMarkerOverlayView();
+                        if(calibrationMode){
+                            removePopUpAndMarkerOverlayView();
+                            if(!graphView.isSpectroscopyCalibrated) spectroscopyCalibrationManager.resetCalibration();
+                        }
                         graphView.setTouchMode(GraphView.TouchMode.pick);
                         return true;
                     case R.id.graph_tools_calibrate:
                         removePopUpAndMarkerOverlayView();
                         graphView.setTouchMode(GraphView.TouchMode.calibrate);
-                        spectroscopyCalibrationManager.startCalibration();
+                        if(!graphView.isSpectroscopyCalibrated) spectroscopyCalibrationManager.resetCalibration();
                         return true;
                     case R.id.graph_tools_more:
                         PopupMenu popup = createGraphToolPopUpMenu();
@@ -512,16 +518,14 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             graphView.setTouchMode(GraphView.TouchMode.off);
             linearRegression = false;
             graphView.resetPicks();
-            resizeCalibrationConfirmationHeight();
         }
         else if (toolbar.getSelectedItemId() == R.id.graph_tools_pan)
             graphView.setTouchMode(GraphView.TouchMode.zoom);
         else if (toolbar.getSelectedItemId() == R.id.graph_tools_pick)
             graphView.setTouchMode(GraphView.TouchMode.pick);
-        else if (toolbar.getSelectedItemId() == R.id.graph_tools_calibrate){
+        else if (toolbar.getSelectedItemId() == R.id.graph_tools_calibrate)
             graphView.setTouchMode(GraphView.TouchMode.calibrate);
-            resizeCalibrationConfirmationHeight();
-        }
+        resizeCalibrationConfirmationHeight();
 
         toolbar.setVisibility(interactive ? VISIBLE : GONE);
         expandImage.setVisibility(interactive ? INVISIBLE : VISIBLE);
@@ -822,6 +826,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         clearCalibrationMarkers();
         markerOverlayView.update(null, null);
         graphView.resetPicks();
+        this.graphView.isSpectroscopyCalibrated = false;
     }
 
     @Override
@@ -853,6 +858,9 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
         markerOverlayView.update(null, null);
 
+        this.graphView.isSpectroscopyCalibrated = true;
+        graphView.setTouchMode(GraphView.TouchMode.off);
+
     }
 
     @Override
@@ -861,6 +869,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         clearCalibrationMarkers();
         markerOverlayView.update(null, null);
         graphView.resetPicks();
+        this.graphView.isSpectroscopyCalibrated = false;
     }
 
     @Override

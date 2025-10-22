@@ -149,6 +149,7 @@ public class GraphView extends View {
     boolean followX = false;
 
     private TouchMode touchMode = TouchMode.off;
+    public boolean isSpectroscopyCalibrated = false;
     public class ZoomState implements Serializable {
         double minX = Double.NaN;
         double maxX = Double.NaN;
@@ -308,6 +309,10 @@ public class GraphView extends View {
     }
 
     public void setTouchMode(TouchMode touchMode) {
+        if(isSpectroscopyCalibrated){
+            this.touchMode = TouchMode.off;
+            return;
+        }
         this.touchMode = touchMode;
         if (touchMode == TouchMode.off) {
             resetPicks();
