@@ -63,6 +63,7 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
     var shutterSpeedDataBuffer: DataBuffer? = null
     var isoDataBuffer: DataBuffer? = null
     var apertureDataBuffer: DataBuffer? = null
+    var dataPixelPosition: DataBuffer? = null
 
     enum class AEStrategy {
         mean, avoidUnderxposure, avoidOverexposure, prioritizeFramerate
@@ -419,6 +420,9 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
     lateinit var buffers: Vector<DataOutput>
 
     lateinit var cameraFeature: PhyphoxCameraFeature
+    fun isFeaturePhotometry() = this.cameraFeature == PhyphoxCameraFeature.Photometric;
+    fun isFeatureSpectroscopy() = this.cameraFeature == PhyphoxCameraFeature.Spectroscopy;
+
     var lockedSettings: MutableMap<String, String>? = mutableMapOf()
 
     // Status of the play and pause for image analysis
@@ -465,14 +469,17 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
         if (buffers.size > 7 && buffers[7] != null) shutterSpeedDataBuffer = buffers[7].buffer
         if (buffers.size > 8 && buffers[8] != null) isoDataBuffer = buffers[8].buffer
         if (buffers.size > 9 && buffers[9] != null) apertureDataBuffer = buffers[9].buffer
+        if (buffers.size > 10 && buffers[10] != null) dataPixelPosition = buffers[10].buffer
 
         this.dataLock = lock
         this.aeStrategy = aeStrategy
         this.thresholdAnalyzerThreshold = thresholdAnalyzerThreshold
+        this.cameraFeature = cameraFeature
     }
 
     enum class PhyphoxCameraFeature {
-        Photometric, ColorDetector, Spectroscopy, MotionAnalysis, OCR
+        Photometric, Spectroscopy, MotionAnalysis
+
     }
 
     fun start() {

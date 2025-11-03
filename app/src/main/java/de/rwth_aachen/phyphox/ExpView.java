@@ -1431,6 +1431,8 @@ public class ExpView implements Serializable{
 
         private String gridColor;
 
+        private boolean calibrationMode;
+
         GraphView.scaleMode scaleMinX = GraphView.scaleMode.auto;
         GraphView.scaleMode scaleMaxX = GraphView.scaleMode.auto;
         GraphView.scaleMode scaleMinY = GraphView.scaleMode.auto;
@@ -1634,6 +1636,10 @@ public class ExpView implements Serializable{
                 gv.graphSetup.incrementalX = pu;
         }
 
+        protected void setCalibrationMode(boolean calibrationMode){
+            this.calibrationMode = calibrationMode;
+        }
+
         @Override
         //The update mode is "partial" or "full" as this element uses arrays. The experiment may
         //decide if partial updates are sufficient
@@ -1676,7 +1682,7 @@ public class ExpView implements Serializable{
             interactiveGV.setLayoutParams(lp);
             interactiveGV.setLabel(this.label);
             interactiveGV.setShowColorScale(showColorScale);
-
+            interactiveGV.setCalibrationMode(calibrationMode);
             if (act instanceof Experiment) {
                 DataExport dataExport = new DataExport(experiment);
 

@@ -11,6 +11,7 @@ import android.os.Build;
 
 import androidx.annotation.RequiresApi;
 
+import de.rwth_aachen.phyphox.camera.CameraInput;
 import de.rwth_aachen.phyphox.camera.model.CameraSettingState;
 
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
@@ -21,20 +22,21 @@ public abstract class AnalyzingModule {
     static EGLConfig eglConfig;
     static int cameraTexture;
     static EGLSurface analyzingSurface = null;
-    static final int nDownsampleSteps = 3; // Must be <= 4 (analyzing modules are designed with this limit in mind)
+
+    static int nDownsampleSteps = 3; // Must be <= 4 (analyzing modules are designed with this limit in mind)
     // 3 downsampling steps seem to be a good trade-off between fixed costs of each step and reducing CPU load.
     // However, this was only tested on a Nexus 5x which had its optimum at 3 and a Pixel 6 where 3 and 4 steps were
     // nearly indistinguishable. Note, that this probably also heavily depends on the resolution that the video
     // stream gets on this device. Both devices used a 1600x1200 stream, but older devices with lower resolutions
     // might reduce the preview stream resolution, hopefully evening out the lower performance of such devices.
 
-    static EGLSurface downsampleSurfaces[] = new EGLSurface[nDownsampleSteps];
-    static int wDownsampleStep[] = new int[nDownsampleSteps];
-    static int hDownsampleStep[] = new int[nDownsampleSteps];
+    static EGLSurface[] downsampleSurfaces = new EGLSurface[nDownsampleSteps];
+    static int[] wDownsampleStep = new int[nDownsampleSteps];
+    static int[] hDownsampleStep = new int[nDownsampleSteps];
 
-    static int downsamplingTextures[] = new int[nDownsampleSteps];
+    static int[] downsamplingTextures = new int[nDownsampleSteps];
 
-    static public void init(int w, int h, EGLContext eglContext, EGLDisplay eglDisplay, EGLConfig eglConfig, int cameraTexture) {
+    static public void init(int w, int h, EGLContext eglContext, EGLDisplay eglDisplay, EGLConfig eglConfig, int cameraTexture,  boolean verticalReduction) {
         AnalyzingModule.w = w;
         AnalyzingModule.h = h;
         AnalyzingModule.eglContext = eglContext;
@@ -52,11 +54,21 @@ public abstract class AnalyzingModule {
         };
         analyzingSurface = EGL14.eglCreatePbufferSurface(eglDisplay, eglConfig, surfaceAttr, 0);
 
+        // For Spectroscopy feature, during downsampling, there is vertical reduction 4 * 1 instead of 2 * 2.
+        // This makes the downsample step and width of the texture to be different.
+        if(verticalReduction){
+            nDownsampleSteps = 4;
+            downsampleSurfaces = new EGLSurface[nDownsampleSteps];
+            wDownsampleStep = new int[nDownsampleSteps];
+            hDownsampleStep = new int[nDownsampleSteps];
+            downsamplingTextures = new int[nDownsampleSteps];
+        }
+
         GLES20.glGenTextures(nDownsampleSteps, downsamplingTextures, 0);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 
         for (int i = 0; i < nDownsampleSteps; i++) {
-            wDownsampleStep[i] = (i == 0) ? ((w + 3) / 4) : ((wDownsampleStep[i-1] + 3) / 4);
+            wDownsampleStep[i] = verticalReduction ? w : ((i == 0) ? ((w + 3) / 4) : ((wDownsampleStep[i-1] + 3) / 4));
             hDownsampleStep[i] = (i == 0) ? ((h + 3) / 4) : ((hDownsampleStep[i-1] + 3) / 4);
 
             int[] surfaceDownsampleAttr = {

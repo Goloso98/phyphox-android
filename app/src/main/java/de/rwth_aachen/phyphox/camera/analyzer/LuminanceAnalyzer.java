@@ -181,7 +181,11 @@ public class LuminanceAnalyzer extends AnalyzingModule {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
 
         GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
-        GLES20.glScissor((int)Math.floor(w*(1.0-Math.max(passepartout.top, passepartout.bottom))), (int)Math.floor(h*(1.0-Math.max(passepartout.left, passepartout.right))), (int)Math.ceil(w*Math.abs(passepartout.height())), (int)Math.ceil(h*Math.abs(passepartout.width())));
+        GLES20.glScissor(
+                (int)Math.floor(w*(1.0-Math.max(passepartout.top, passepartout.bottom))),
+                (int)Math.floor(h*(1.0-Math.max(passepartout.left, passepartout.right))),
+                (int)Math.ceil(w*Math.abs(passepartout.height())),
+                (int)Math.ceil(h*Math.abs(passepartout.width())));
 
         GLES20.glUseProgram(luminanceProgram);
 

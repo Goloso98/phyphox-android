@@ -811,6 +811,10 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         if(this.graphView != null)
             this.graphView.setShowColorScaleForColorMapChart(showColorScale);
     }
+
+    public void setCalibrationMode(boolean calibrationMode){
+        this.calibrationMode = calibrationMode;
+    }
     @Override
     public void spectroscopyUnCalibrated(SpectroscopyCalibrationManager manager) {
         spectroscopyStatusLabel.setText("");

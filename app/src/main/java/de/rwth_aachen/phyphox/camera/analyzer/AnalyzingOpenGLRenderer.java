@@ -69,6 +69,8 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
 
     Long lastPreviewFrame = 0L;
 
+    Boolean isFeatureSpectroscopy = false;
+
     public AnalyzingOpenGLRenderer(CameraInput cameraInput, Lock lock, StateFlow<CameraSettingState> cameraSettingValueState, ExposureStatisticsListener exposureStatisticsListener) {
         this.cameraSettingValueState = cameraSettingValueState;
         this.experimentTimeReference = cameraInput.experimentTimeReference;
@@ -79,9 +81,13 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
         this.apertureOutput = cameraInput.getApertureDataBuffer();
         this.isoOutput = cameraInput.getIsoDataBuffer();
 
+        isFeatureSpectroscopy = cameraInput.isFeatureSpectroscopy();
+
         this.dataLock = lock;
         if (cameraInput.getDataLuminance() != null) {
-            analyzingModules.add(new LuminanceAnalyzer(cameraInput.getDataLuminance(), true));
+            if(cameraInput.isFeaturePhotometry()){
+                analyzingModules.add(new LuminanceAnalyzer(cameraInput.getDataLuminance(), true));
+            }
         }
         if (cameraInput.getDataLuma() != null) {
             analyzingModules.add(new LuminanceAnalyzer(cameraInput.getDataLuma(), false));
@@ -97,6 +103,11 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
         }
         if (cameraInput.getDataThreshold() != null) {
             analyzingModules.add(new ThresholdAnalyzer(cameraInput.getDataThreshold(), cameraInput.getThresholdAnalyzerThreshold()));
+        }
+        if(cameraInput.getDataPixelPosition() != null){
+            if(cameraInput.isFeatureSpectroscopy()){
+                analyzingModules.add(new SpectroscopyAnalyzer(cameraInput.getDataLuminance(), cameraInput.getDataPixelPosition(),true));
+            }
         }
 
         this.exposureAnalyzer = new ExposureAnalyzer();
@@ -176,7 +187,7 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
 
         checkGLError("prepareOpenGL");
 
-        AnalyzingModule.init(w, h, eglContext, eglDisplay, eglConfig, eglCameraTexture);
+        AnalyzingModule.init(w, h, eglContext, eglDisplay, eglConfig, eglCameraTexture, isFeatureSpectroscopy);
         for (AnalyzingModule analyzingModule : analyzingModules) {
             analyzingModule.prepare();
         }

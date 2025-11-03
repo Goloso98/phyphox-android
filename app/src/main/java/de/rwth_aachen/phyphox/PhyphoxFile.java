@@ -1393,6 +1393,7 @@ public abstract class PhyphoxFile {
                     String unitY = getTranslatedAttribute("unitY");
                     String unitZ = getTranslatedAttribute("unitZ");
                     String unitYX = getTranslatedAttribute("unitYperX");
+                    boolean calibrationMode = getBooleanAttribute("calibrationMode", false);
 
                     Vector<Integer> colorScale = new Vector<>();
                     int colorStepIndex = 1;
@@ -1515,6 +1516,7 @@ public abstract class PhyphoxFile {
                     ge.setLogScale(logX, logY, logZ); //logarithmic scales for x/y axes
                     ge.setPrecision(xPrecision, yPrecision, zPrecision); //logarithmic scales for x/y axes
                     ge.setSuppressScientificNotation(suppressScientificNotation);
+                    ge.setCalibrationMode(calibrationMode);
 
                     if (!globalColor) {
                         for (int i = 0; i < Math.ceil(ats.size() / 3); i++) {
@@ -2118,6 +2120,10 @@ public abstract class PhyphoxFile {
                                 feature = CameraInput.PhyphoxCameraFeature.Photometric;
                                 break;
                             }
+                            case "spectroscopy": {
+                                feature = CameraInput.PhyphoxCameraFeature.Spectroscopy;
+                                break;
+                            }
                             default: {
                                 throw new phyphoxFileException("Unknown feature name: " + featureStr, xpp.getLineNumber());
                             }
@@ -2152,6 +2158,7 @@ public abstract class PhyphoxFile {
                                 new ioBlockParser.ioMapping() {{name = "shutterSpeed"; asRequired = true; minCount = 0; maxCount = 1; valueAllowed = false;}},
                                 new ioBlockParser.ioMapping() {{name = "iso"; asRequired = true; minCount = 0; maxCount = 1; valueAllowed = false;}},
                                 new ioBlockParser.ioMapping() {{name = "aperture"; asRequired = true; minCount = 0; maxCount = 1; valueAllowed = false;}},
+                                new ioBlockParser.ioMapping() {{name = "pixelPosition"; asRequired = true; minCount = 0; maxCount = 1; valueAllowed = false;}},
                         };
 
                         //String availableCameraSettings = getStringAttribute("setting");
