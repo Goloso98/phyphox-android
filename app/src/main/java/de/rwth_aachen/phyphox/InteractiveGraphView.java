@@ -62,6 +62,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     FrameLayout graphFrame;
 
     private boolean calibrationMode = true;
+    private DataBuffer slopeBuffer = null;
+    private  DataBuffer interceptBuffer = null;
 
     private class Marker {
         boolean active = false;
@@ -815,6 +817,15 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     public void setCalibrationMode(boolean calibrationMode){
         this.calibrationMode = calibrationMode;
     }
+
+    public void  setSlopeBuffer(DataBuffer slopeBuffer){
+        this.slopeBuffer = slopeBuffer;
+    }
+
+    public void  setInterceptBuffer(DataBuffer interceptBuffer){
+        this.interceptBuffer = interceptBuffer;
+    }
+
     @Override
     public void spectroscopyUnCalibrated(SpectroscopyCalibrationManager manager) {
         spectroscopyStatusLabel.setText("");
@@ -861,6 +872,13 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         }
 
         markerOverlayView.update(null, null);
+
+        if(slopeBuffer != null && interceptBuffer != null){
+            slopeBuffer.clear(true);
+            slopeBuffer.append(slope);
+            interceptBuffer.clear(true);
+            interceptBuffer.append(intercept);
+        }
 
         this.graphView.isSpectroscopyCalibrated = true;
         graphView.setTouchMode(GraphView.TouchMode.off);

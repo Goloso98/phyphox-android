@@ -1454,8 +1454,8 @@ public class ExpView implements Serializable{
         final String warningText;
 
         //Quite usual constructor...
-        graphElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        graphElement(String label, Vector<String> valueOutputs, Vector<String> inputs, Resources res) {
+            super(label, valueOutputs, inputs, res);
             this.self = this;
 
             margin = res.getDimensionPixelSize(R.dimen.activity_vertical_margin);
@@ -1683,6 +1683,11 @@ public class ExpView implements Serializable{
             interactiveGV.setLabel(this.label);
             interactiveGV.setShowColorScale(showColorScale);
             interactiveGV.setCalibrationMode(calibrationMode);
+            if(calibrationMode){
+                interactiveGV.setSlopeBuffer(experiment.getBuffer(outputs.get(0)));
+                interactiveGV.setInterceptBuffer(experiment.getBuffer(outputs.get(1)));
+            }
+
             if (act instanceof Experiment) {
                 DataExport dataExport = new DataExport(experiment);
 

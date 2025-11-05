@@ -1471,7 +1471,13 @@ public abstract class PhyphoxFile {
                             new ioBlockParser.ioMapping() {{name = "x"; asRequired = true; minCount = 0; maxCount = 0; valueAllowed = false; repeatableOffset = 1;}},
                             new ioBlockParser.ioMapping() {{name = "z"; asRequired = true; minCount = 0; maxCount = 0; valueAllowed = false; repeatableOffset = 2;}}
                     };
-                    (new ioBlockParser(xpp, experiment, parent, inputs, null, inputMapping, null, "axis", ats)).process(); //Load inputs and outputs
+
+                    ioBlockParser.ioMapping[] outputMapping = {
+                            new ioBlockParser.ioMapping() {{ name = "slope"; asRequired = false; minCount = 0; maxCount = 0; valueAllowed = false; repeatableOffset = 0;}},
+                            new ioBlockParser.ioMapping() {{ name = "intercept"; asRequired = false; minCount = 0; maxCount = 0; valueAllowed = false; repeatableOffset = 0;}}
+                    };
+
+                    (new ioBlockParser(xpp, experiment, parent, inputs, outputs, inputMapping, outputMapping, "axis", ats)).process(); //Load inputs and outputs
 
                     Vector<String> inStrings = new Vector<>();
                     for (int i = 0; i < inputs.size(); i++) {
@@ -1493,9 +1499,17 @@ public abstract class PhyphoxFile {
                         }
                     }
 
-                    ExpView.graphElement ge = newView.new graphElement(label, null, inStrings, parent.getResources()); //Two array inputs
-                    ge.setAspectRatio(aspectRatio); //Aspect ratio of the whole element area icluding axes
+                    Vector<String> outStrings = new Vector<>();
+                    for(int i=0; i < outputs.size(); i++){
+                        if(outputs.get(i) != null){
+                            outStrings.add(outputs.get(i).buffer.name);
+                        } else {
+                            outStrings.add(null);
+                        }
+                    }
 
+                    ExpView.graphElement ge = newView.new graphElement(label, outStrings, inStrings, parent.getResources()); //Two array inputs
+                    ge.setAspectRatio(aspectRatio); //Aspect ratio of the whole element area icluding axes
 
                     if (lineStyle != null) {
                         ge.setStyle(GraphView.styleFromStr(lineStyle));
@@ -1540,7 +1554,7 @@ public abstract class PhyphoxFile {
                         ioBlockParser.AdditionalTag at = ats.get(i);
                         if (at == null)
                             continue;
-                        if (!at.name.equals("input")) {
+                        if (!at.name.equals("input") && !at.name.equals("output") ) {
                             throw new phyphoxFileException("Unknown tag "+at.name+" found by ioBlockParser.", xpp.getLineNumber());
                         }
                         if (at.attributes.containsKey("style")) {
