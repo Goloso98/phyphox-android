@@ -11,6 +11,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
@@ -133,8 +134,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         });
 
         toolbar.inflateMenu(R.menu.graph_menu);
-
-        toolbar.getMenu().getItem(2).setVisible(calibrationMode);
 
         toolbar.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             @Override
@@ -816,6 +815,15 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
     public void setCalibrationMode(boolean calibrationMode){
         this.calibrationMode = calibrationMode;
+
+        setCalibrationMenuItemVisibility();
+    }
+
+    private void setCalibrationMenuItemVisibility(){
+        MenuItem calibrationItem = toolbar.getMenu().findItem(R.id.graph_tools_calibrate);
+        if(calibrationItem != null){
+            calibrationItem.setVisible(calibrationMode);
+        }
     }
 
     public void  setSlopeBuffer(DataBuffer slopeBuffer){
