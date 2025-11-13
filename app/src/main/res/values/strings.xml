@@ -133,6 +133,8 @@
     <string name="spectroscopy_calibration_failed">Calibration failed</string>
     <string name="spectroscopy_confirm_point">Confirm this calibration point?</string>
     <string name="calibration_reset">Reset Calibration</string>
+    <string name="not_calibrated">Not calibrated</string>
+    <string name="calibration_invalid">Calibration parameters invalid</string>
     <!-- Graph Zooms  -->
     <string name="applyZoomTitle">Apply zoom</string>
     <string name="applyZoomExplanation">As you are closing the interactive mode of this graph, you can select if you want to keep your zoom.</string>

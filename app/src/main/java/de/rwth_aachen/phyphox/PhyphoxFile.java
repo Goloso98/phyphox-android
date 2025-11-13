@@ -1394,6 +1394,7 @@ public abstract class PhyphoxFile {
                     String unitZ = getTranslatedAttribute("unitZ");
                     String unitYX = getTranslatedAttribute("unitYperX");
                     boolean calibrationMode = getBooleanAttribute("calibrationMode", false);
+                    boolean needsCalibration = getBooleanAttribute("needsCalibration", false);
 
                     Vector<Integer> colorScale = new Vector<>();
                     int colorStepIndex = 1;
@@ -1531,6 +1532,7 @@ public abstract class PhyphoxFile {
                     ge.setPrecision(xPrecision, yPrecision, zPrecision); //logarithmic scales for x/y axes
                     ge.setSuppressScientificNotation(suppressScientificNotation);
                     ge.setCalibrationMode(calibrationMode);
+                    ge.setNeedsCalibration(needsCalibration);
 
                     if (!globalColor) {
                         for (int i = 0; i < Math.ceil(ats.size() / 3); i++) {

@@ -1,6 +1,8 @@
 package de.rwth_aachen.phyphox;
 
 
+import static android.view.View.VISIBLE;
+
 import android.content.Context;
 import android.content.DialogInterface;
 import android.text.InputType;
@@ -43,17 +45,19 @@ public class SpectroscopyCalibrationManager {
         }
     }
 
+    public ExpViewFragment topLevelParent;
     private SpectroscopyCalibrationDelegate delegate;
     private List<CalibrationPoint> calibrationPoints;
     private CalibrationState calibrationState;
     private CalibrationParameters calibrationParameters;
     private Context context;
 
-    public SpectroscopyCalibrationManager(Context context) {
+    public SpectroscopyCalibrationManager(Context context, ExpViewFragment parent) {
         this.context = context;
         this.calibrationPoints = new ArrayList<>();
         this.calibrationState = CalibrationState.UNCALIBRATED;
         this.calibrationParameters = null;
+        this.topLevelParent = parent;
     }
 
     public void setDelegate(SpectroscopyCalibrationDelegate delegate) {
@@ -233,7 +237,7 @@ public class SpectroscopyCalibrationManager {
         calibrationPoints.clear();
         calibrationState = CalibrationState.START;
         calibrationParameters = null;
-
+        topLevelParent.spectroscopyGraphCalibrationStatusTextLabel.setVisibility(VISIBLE);
         if (delegate != null) {
             delegate.spectroscopyCalibrationDidReset(this);
         }
@@ -261,7 +265,6 @@ public class SpectroscopyCalibrationManager {
         }
         return key;
     }
-
     // Delegate Interface
     public interface SpectroscopyCalibrationDelegate {
         void spectroscopyUnCalibrated(SpectroscopyCalibrationManager manager);

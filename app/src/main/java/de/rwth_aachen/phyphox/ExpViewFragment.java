@@ -5,12 +5,12 @@ import android.animation.LayoutTransition;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.fragment.app.Fragment;
 
@@ -20,6 +20,9 @@ public class ExpViewFragment extends Fragment {
     private int index;
     public CustomScrollableView root;
     boolean hasExclusive;
+
+    //This falls under graphElement-> SpectroscopyCalibrationManager
+    TextView spectroscopyGraphCalibrationStatusTextLabel;
 
     public ExpViewFragment() {
         // Required empty public constructor
@@ -33,6 +36,11 @@ public class ExpViewFragment extends Fragment {
                 ge.applyZoom(min, max, follow, unit, buffer, yAxis, absoluteTime);
             }
         }
+    }
+
+    // Takes the reference of textLabel which shows if the spectroscopy graph is calibrated or not.
+    public void setSpectroscopyGraphCalibrationStatusTextLabel(TextView spectroscopyGraphCalibrationStatusTextLabel){
+        this.spectroscopyGraphCalibrationStatusTextLabel = spectroscopyGraphCalibrationStatusTextLabel;
     }
 
     public void disableScrolling(){

@@ -1,5 +1,6 @@
 package de.rwth_aachen.phyphox;
 
+import static android.view.View.GONE;
 import static android.view.View.INVISIBLE;
 import static android.view.View.VISIBLE;
 
@@ -288,7 +289,7 @@ public class ExpView implements Serializable{
         protected void hide() {
             state = State.hidden;
             if (rootView != null) {
-                rootView.setVisibility(View.GONE);
+                rootView.setVisibility(GONE);
             }
         }
 
@@ -1432,6 +1433,7 @@ public class ExpView implements Serializable{
         private String gridColor;
 
         private boolean calibrationMode;
+        private boolean needsCalibration;
 
         GraphView.scaleMode scaleMinX = GraphView.scaleMode.auto;
         GraphView.scaleMode scaleMaxX = GraphView.scaleMode.auto;
@@ -1640,6 +1642,10 @@ public class ExpView implements Serializable{
             this.calibrationMode = calibrationMode;
         }
 
+        protected void setNeedsCalibration(boolean needsCalibration){
+            this.needsCalibration = needsCalibration;
+        }
+
         @Override
         //The update mode is "partial" or "full" as this element uses arrays. The experiment may
         //decide if partial updates are sufficient
@@ -1682,7 +1688,8 @@ public class ExpView implements Serializable{
             interactiveGV.setLayoutParams(lp);
             interactiveGV.setLabel(this.label);
             interactiveGV.setShowColorScale(showColorScale);
-            interactiveGV.setCalibrationMode(calibrationMode);
+            interactiveGV.setCalibrationMode(calibrationMode, c,  self.parent);
+            interactiveGV.setNeedsCalibration(needsCalibration, c,  self.parent);
             if(calibrationMode){
                 interactiveGV.setSlopeBuffer(experiment.getBuffer(outputs.get(0)));
                 interactiveGV.setInterceptBuffer(experiment.getBuffer(outputs.get(1)));
@@ -2275,6 +2282,7 @@ public class ExpView implements Serializable{
             gv.rescale();
             gv.invalidate();
         }
+
     }
 
     //depthGUI implements a camera preview and interface to customize the data acquisition of the
@@ -2392,7 +2400,7 @@ public class ExpView implements Serializable{
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
             ));
-            modeControl.setVisibility(View.GONE);
+            modeControl.setVisibility(GONE);
             class ModeItem {
                 public final DepthInput.DepthExtractionMode key;
                 public final String value;
@@ -2450,7 +2458,7 @@ public class ExpView implements Serializable{
             textInputCameraSelection.addView(autoCompleteTvCameraSelection);
             layout.addView(textInputCameraSelection);
 
-            textInputCameraSelection.setVisibility(View.GONE);
+            textInputCameraSelection.setVisibility(GONE);
             class CameraItem {
                 public final String key, value;
                 CameraItem(String key, String value) {
@@ -2542,11 +2550,11 @@ public class ExpView implements Serializable{
                     collapseImage.setVisibility(INVISIBLE);
                 }
                 if (modeControl != null)
-                    modeControl.setVisibility(View.GONE);
+                    modeControl.setVisibility(GONE);
                 if (cameraSelection != null)
-                    cameraSelection.setVisibility(View.GONE);
+                    cameraSelection.setVisibility(GONE);
                 if(textInputCameraSelection != null)
-                    textInputCameraSelection.setVisibility(View.GONE);
+                    textInputCameraSelection.setVisibility(GONE);
 
                 rootView.getLayoutParams().height = LinearLayout.LayoutParams.WRAP_CONTENT;
                 rootView.requestLayout();

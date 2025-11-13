@@ -11,7 +11,6 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
@@ -63,6 +62,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     FrameLayout graphFrame;
 
     private boolean calibrationMode = true;
+    private boolean needsCalibration = true;
     private DataBuffer slopeBuffer = null;
     private  DataBuffer interceptBuffer = null;
 
@@ -100,6 +100,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     MarkerOverlayView markerOverlayView;
     private SpectroscopyCalibrationManager spectroscopyCalibrationManager;
     private TextView spectroscopyStatusLabel;
+
     private List<View> calibrationMarkerViews = new ArrayList<>();
     private boolean needsCalibrationMarkerUpdate = false;
 
@@ -249,35 +250,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         graphFrame.addView(markerOverlayView);
 
         if(!calibrationMode) return;
-
-        // Initialize spectroscopy calibration manager
-        spectroscopyCalibrationManager = new SpectroscopyCalibrationManager(context);
-        spectroscopyCalibrationManager.setDelegate(this);
-
-        // Add spectroscopy status label
-        spectroscopyStatusLabel = new TextView(context);
-        spectroscopyStatusLabel.setLayoutParams(new RelativeLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-        spectroscopyStatusLabel.setVisibility(GONE);
-        spectroscopyStatusLabel.setPadding(16, 8, 16, 8);
-        spectroscopyStatusLabel.setTextSize(14);
-        if (Helper.isDarkTheme(getResources())) {
-            spectroscopyStatusLabel.setBackgroundColor(getResources().getColor(R.color.phyphox_black_50));
-            spectroscopyStatusLabel.setTextColor(getResources().getColor(R.color.phyphox_white_100));
-        } else {
-            spectroscopyStatusLabel.setBackgroundColor(getResources().getColor(R.color.phyphox_white_100));
-            spectroscopyStatusLabel.setTextColor(getResources().getColor(R.color.phyphox_black_100));
-        }
-
-        RelativeLayout.LayoutParams statusParams = (RelativeLayout.LayoutParams) spectroscopyStatusLabel.getLayoutParams();
-        statusParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
-        statusParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
-        statusParams.topMargin = 50;
-        spectroscopyStatusLabel.setLayoutParams(statusParams);
-
-        this.addView(spectroscopyStatusLabel);
-
         // Since the height of the graph is updated during plot rendering, the update of
         // the calibration confirmation marker height need to be readjusted after the rendering is complete.
         plotRenderer.getGraphSetup().setOnRenderedPlotResizedListener(graphHeight -> {
@@ -286,6 +258,33 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                 needsCalibrationMarkerUpdate = false;
             }
         });
+    }
+
+    private TextView createStatusLabel(Context context){
+        // Add spectroscopy status label
+        TextView spectroscopyStatusLabel = new TextView(context);
+
+        FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+
+        statusParams.gravity = Gravity.TOP | Gravity.END;
+
+        statusParams.topMargin = 8;
+        statusParams.rightMargin = 24;
+        spectroscopyStatusLabel.setLayoutParams(statusParams);
+        spectroscopyStatusLabel.setTextSize(14);
+
+        if (Helper.isDarkTheme(getResources())) {
+            spectroscopyStatusLabel.setBackgroundColor(getResources().getColor(R.color.phyphox_black_60));
+            spectroscopyStatusLabel.setTextColor(getResources().getColor(R.color.phyphox_white_100));
+        } else {
+            spectroscopyStatusLabel.setBackgroundColor(getResources().getColor(R.color.phyphox_white_100));
+            spectroscopyStatusLabel.setTextColor(getResources().getColor(R.color.phyphox_black_100));
+        }
+
+        return spectroscopyStatusLabel;
     }
 
     private PopupMenu createGraphToolPopUpMenu(){
@@ -813,10 +812,40 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             this.graphView.setShowColorScaleForColorMapChart(showColorScale);
     }
 
-    public void setCalibrationMode(boolean calibrationMode){
+    public void setCalibrationMode(boolean calibrationMode, Context context, ExpViewFragment parent){
         this.calibrationMode = calibrationMode;
 
+        if(calibrationMode){
+            spectroscopyStatusLabel = createStatusLabel(context);
+            spectroscopyStatusLabel.setText(getResources().getString(R.string.calibration_invalid));
+            graphFrame.addView(spectroscopyStatusLabel);
+
+            if(spectroscopyCalibrationManager == null){
+                spectroscopyCalibrationManager = new SpectroscopyCalibrationManager(context, parent);
+                spectroscopyCalibrationManager.setDelegate(this);
+            }
+        }
+
         setCalibrationMenuItemVisibility();
+    }
+
+
+    public void setNeedsCalibration(boolean needsCalibration, Context context, ExpViewFragment parent){
+        this.needsCalibration = needsCalibration;
+
+        if(needsCalibration){
+            TextView spectroscopyStatusLabel_ = createStatusLabel(context);
+            spectroscopyStatusLabel_.setVisibility(VISIBLE);
+            spectroscopyStatusLabel_.setText(getResources().getString(R.string.not_calibrated));
+            graphFrame.addView(spectroscopyStatusLabel_);
+
+            if(spectroscopyCalibrationManager == null){
+                spectroscopyCalibrationManager = new SpectroscopyCalibrationManager(context, parent);
+                spectroscopyCalibrationManager.setDelegate(this);
+            }
+
+            parent.setSpectroscopyGraphCalibrationStatusTextLabel(spectroscopyStatusLabel_);
+        }
     }
 
     private void setCalibrationMenuItemVisibility(){
@@ -846,6 +875,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     public void spectroscopyCalibrationDidStart(SpectroscopyCalibrationManager manager) {
         spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_tap_first_point));
         spectroscopyStatusLabel.setVisibility(VISIBLE);
+        manager.topLevelParent.spectroscopyGraphCalibrationStatusTextLabel.setVisibility(VISIBLE);
         clearCalibrationMarkers();
         markerOverlayView.update(null, null);
         graphView.resetPicks();
@@ -881,12 +911,10 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
         markerOverlayView.update(null, null);
 
-        if(slopeBuffer != null && interceptBuffer != null){
-            slopeBuffer.clear(true);
-            slopeBuffer.append(slope);
-            interceptBuffer.clear(true);
-            interceptBuffer.append(intercept);
-        }
+        updateCalibrationParametersBuffer(slope,intercept);
+
+        //Reflect the calibration setup graph status in wavelength graph.
+        manager.topLevelParent.spectroscopyGraphCalibrationStatusTextLabel.setVisibility(GONE);
 
         this.graphView.isSpectroscopyCalibrated = true;
         graphView.setTouchMode(GraphView.TouchMode.off);
@@ -899,6 +927,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         clearCalibrationMarkers();
         markerOverlayView.update(null, null);
         graphView.resetPicks();
+
+        updateCalibrationParametersBuffer(1,0);
         this.graphView.isSpectroscopyCalibrated = false;
     }
 
@@ -994,8 +1024,14 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         }
     }
 
-    public SpectroscopyCalibrationManager getSpectroscopyCalibrationManager() {
-        return spectroscopyCalibrationManager;
+
+    private void updateCalibrationParametersBuffer(double slope, double intercept){
+        if(slopeBuffer != null && interceptBuffer != null){
+            slopeBuffer.clear(true);
+            slopeBuffer.append(slope);
+            interceptBuffer.clear(true);
+            interceptBuffer.append(intercept);
+        }
     }
 
 
