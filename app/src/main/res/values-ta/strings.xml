@@ -1,2 +1,192 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources></resources>
+<resources>
+    <string name="app_name">phyphox</string>
+    <string name="privacyPolicyURL">https://phyphox.org/privacy</string>
+    <string name="action_settings">அமைப்புகள்</string>
+    <string name="title_activity_experiment">phyphox</string>
+    <string name="graph_tools_pan_and_zoom">நகர்த்து &amp; பெரிதாக்கு</string>
+    <string name="graph_tools_pick">தரவை எடு</string>
+    <string name="graph_tools_more">மேலும்</string>
+    <string name="graph_tools_system_time">சாதனத்தின் நேரத்திற்கு மாற்று</string>
+    <string name="graph_tools_reset">பெருக்கியை மீட்டமை</string>
+    <string name="graph_tools_follow">புதிய தரவைப் பின்தொடர்</string>
+    <string name="graph_tools_linear_fit">நேரியல் பொருத்தம்</string>
+    <string name="graph_tools_export">இதனை பதிவிறக்கு</string>
+    <string name="graph_tools_log_x">மடக்கை x-அச்சு</string>
+    <string name="graph_tools_log_y">மடக்கை y-அச்சு</string>
+    <string name="graph_point_label">புள்ளி</string>
+    <string name="graph_slope_label">சரிவு</string>
+    <string name="graph_difference_label">வேறுபாடு</string>
+    <string name="graph_fit_label">நேரியல் பொருத்தம்: y = ax + b</string>
+    <string name="applyZoomTitle">பெரிதாக்கத்தை செயல்படுத்து</string>
+    <string name="applyZoomExplanation">இந்த வரைபடத்தின் ஊடாடும் முறையை நீங்கள் மூடும்போது, உங்களின் பெரிதாக்கத்தை தக்கவைக்க விரும்பினால் நீங்கள் தேர்ந்தெடுக்கலாம்.</string>
+    <string name="applyZoomAdvanced">மேம்பட்ட விருப்பங்கள்</string>
+    <string name="applyZoomApply">இதற்கு அமை…</string>
+    <string name="applyZoomReset">இயல்புநிலைக்கு மாற்று</string>
+    <string name="applyZoomKeep">தேர்ந்தெடுத்தவாறு தொடர்க</string>
+    <string name="applyZoomFollow">வை &amp; புதிய தரவை தொடர்</string>
+    <string name="applyZoomThis">இந்த வரைபடத்திற்கு மட்டும்</string>
+    <string name="applyZoomSameVariable">மற்ற வரைபடத்திற்கு: இதே மாறி</string>
+    <string name="applyZoomSameUnit">மற்ற வரைபடத்திற்கு: இதே அலகு</string>
+    <string name="applyZoomSameAxis">மற்ற வரைபடத்திற்கு: இதே அச்சு</string>
+    <string name="newExperiment">சோதனைகளைச் சேர்</string>
+    <string name="newExperimentSimple">எளிய சோதனையைச் சேர்</string>
+    <string name="newExperimentPhyphoxInfo">தரவுப் பகுப்பாய்வு உள்ளிட்ட மேம்பட்ட சோதனைகளை உருவாக்க phyphox.org ஐப் பார்வையிடவும், அவற்றை சக ஊழியர்கள், மாணவர்கள் மற்றும் நண்பர்களுடன் பகிர்ந்து கொள்ளவும்.</string>
+    <string name="newExperimentInputTitle">தலைப்பு</string>
+    <string name="newExperimentInputBufferSize">இடையக அளவு (சேமிக்கப்பட வேண்டிய மதிப்புகளின் எண்ணிக்கை)</string>
+    <string name="newExperimentInputRate">உணர்வி வீதம் (ஹெர்ட்ஸ்-ல், 0 = முடிந்தவரை வேகமாக)</string>
+    <string name="newExperimentInputSensors">செயலில் உள்ள உணர்விகள்</string>
+    <string name="newExperimentBluetooth">Bluetooth சாதனத்திற்கான சோதனையைச் சேர்</string>
+    <string name="newExperimentBluetoothErrorTitle">Bluetooth சாதனப்பிழை</string>
+    <string name="newExperimentBluetoothLoadFromDevice">சாதனத்திலிருந்து பதிவேற்று</string>
+    <string name="newExperimentBluetoothLoadFromDeviceInfo">இந்த சாதனம் அதன் சொந்த phyphox பரிசோதனையை வழங்குகிறது. அதைத் திறக்க \"சாதனத்திலிருந்து பதிவேற்று\" என்பதைத் தேர்ந்தெடுக்கவும்.</string>
+    <string name="newExperimentQR">QR குறியீட்டிலிருந்து சோதனையைச் சேர்</string>
+    <string name="newExperimentQRscan">phyphox பரிசோதனையைக் கொண்ட QR குறியீட்டைக் காட்டவும்.</string>
+    <string name="newExperimentQRErrorTitle">QR குறியீட்டில் பிழை.</string>
+    <string name="newExperimentQRNoExperiment">phyphox பரிசோதனையைக் கொண்ட QR குறியீட்டை கண்டறிய முடியவில்லை.</string>
+    <string name="newExperimentQRcrcMismatch">நீங்கள் இப்போது ஸ்கேன் செய்த QR குறியீடு முந்தைய குறியீட்டுடன் பொருந்தவில்லை. அதே பரிசோதனையைச் சேர்ந்த குறியீட்டை மட்டும் ஸ்கேன் செய்வதை உறுதி செய்யுங்கள்.</string>
+    <string name="newExperimentQRCodesMissing1">நீங்கள் இப்போது ஸ்கேன் செய்த QR குறியீடு ஒரு தொகுப்பின் ஒரு பகுதி</string>
+    <string name="newExperimentQRCodesMissing2">மீதமுள்ள குறியீடுகளை ஸ்கேன் செய்ய தொடரவும் என்பதை அழுத்தவும். குறியீடுகள் இன்னும் இல்லை:</string>
+    <string name="newExperimentQRBadCRC">தவறான Checksum. இதன் பொருள் QR குறியீடு மோசமாக உள்ளது அல்லது அதை துழாவும் போது ஏதோ தவறு நடந்துள்ளது.</string>
+    <string name="newExperimentBTReadErrorTitle">Bluetooth பரிசோதனைப் பிழை.</string>
+    <string name="newExperimentBTReadErrorCorrupted">அனுப்பப்பட்ட பரிசோதனைத் தரவு சிதைந்துள்ளது.</string>
+    <string name="generalErrorDialog">ஒரு பிழை ஏற்பட்டுள்ளது.</string>
+    <string name="help">உதவி மற்றும் தகவல்</string>
+    <string name="experimentsPhyphoxOrg">பரிசோதனைக்கான யோசனைகள் மற்றும் வழிமுறைகள்</string>
+    <string name="experimentsPhyphoxOrgURL">http://phyphox.org/experiments</string>
+    <string name="faqPhyphoxOrg">அடிக்கடி கேட்கப்படும் கேள்விகள்</string>
+    <string name="faqPhyphoxOrgURL">http://phyphox.org/faq</string>
+    <string name="remotePhyphoxOrg">தொலை கட்டுப்பாட்டு உதவி</string>
+    <string name="remotePhyphoxOrgURL">http://phyphox.org/remote-control</string>
+    <string name="translationToWebsiteURL">http://phyphox.org/languages#ta</string>
+    <string name="deviceInfo">சாதனத் தகவல்</string>
+    <string name="copyToClipboard">இடைநிலைப்பலகை-க்கு நகலெடுக்கவும்</string>
+    <string name="deviceInfoCopied">சாதனத் தகவல் உங்கள் இடைநிலைப்பலகை-க்கு நகலெடுக்கப்பட்டது.</string>
+    <string name="warning">எச்சரிக்கை</string>
+    <string name="donotshowagain">மீண்டும் காட்டாதே</string>
+    <string name="damageWarning">பரிசோதனை செய்யும் போது உங்கள் தொலைபேசியை சேதப்படுத்தாமல் கவனமாக இருங்கள். கடினமான பரப்புகளில் அது விழுவதைத் தவிர்க்கவும், அதிகப்படியான காந்தப்புலன் உள்ள பகுதிகளில் வெளிப்படுத்தாமல் இருக்கவும் சிறப்பு கவனம் செலுத்துங்கள். உங்கள் தொலைபேசியில் ஏற்படும் எந்தவொரு சேதத்திற்கும் phyphox ஆசிரியர்கள் பொறுப்பல்ல.</string>
+    <string name="info">தகவல்கள்</string>
+    <string name="credits">நன்மதிப்பு</string>
+    <string name="creditsRWTH">phyphox® RWTH Aachen பல்கலைக்கழகத்தில் உள்ள 2வது இயற்பியல் நிறுவனத்தில் உருவாக்கப்பட்டது.</string>
+    <string name="creditsNames">உருவாக்கம் மற்றும் கருத்து:
+\nடாக்டர் Sebastian Staacks
+\nகருத்து:
+\nபேராசிரியர் Christoph Stampfer
+\nநிரலாக்கம்:
+\nGaurav Tripathee
+\nDominik Dorsel
+\nJonas Gessner
+\nCamilla Lummerzheim</string>
+    <string name="gpl">Phyphox® என்பது GNU பொதுஜன உரிமத்தின் கீழ் வெளியிடப்பட்ட திறந்த மூல மென்பொருளாகும். மேலும் தகவலுக்கு மற்றும் அதன் மூலக் குறியீட்டை அணுக http://phyphox.org ஐப் பார்வையிடவும். இருப்பினும், \"phyphox\" மற்றும் \"RWTH Aachen\" என்ற பெயர்கள் பதிவுசெய்யப்பட்ட வர்த்தக முத்திரைகள் ஆகும்.</string>
+    <string name="creditsLibs">தொலைநிலை அணுகலுக்கான வலை-இடைமுகம், GNU பொது பொது உரிமம் v2 இன் கீழ் Java Lightweight HTTP சேவையகத்தை (jlhttp) பயன்படுத்துகிறது மற்றும் MIT உரிமத்தின் கீழ் கிடைக்கும் JavaScript நூலகம் \"Chart.js\" (http://chartjs.org) உடன் தரவைத் திட்டமிடுகிறது. ஃபோரியர் மாற்றத்திற்கு, நாங்கள் FFTW நூலகம் (http://fftw.org), பதிப்புரிமை © 2003, 2007-11 மேட்டியோ ஃப்ரிகோ, பதிப்புரிமை © 2003, 2007-11 மாசசூசெட்ஸ் தொழில்நுட்ப நிறுவனம் ஆகியவற்றைப் பயன்படுத்துகிறோம், இது GNU பொதுஜன உரிமத்தின் (பதிப்பு 2 அல்லது அதற்குப் பிறகு) கீழ் கிடைக்கிறது. GPS உயர்நிலைத் தரவு EGM84 தரவு (30\' தெளிவுத்திறன்) மற்றும் GographicLib (https://geographiclib.sourceforge.io/, MIT/X11 உரிமம்) இலிருந்து போர்ட்டட் செயல்பாட்டைப் பயன்படுத்தி WGS84 நீள்வட்டத்திலிருந்து EGM84 ஜியாய்டுக்கு மாற்றப்படுகிறது.</string>
+    <string name="sensorLinearAcceleration">நேரியல் முடுக்கம்</string>
+    <string name="sensorGravity">புவியீர்ப்பு விசை</string>
+    <string name="sensorLight">ஒளி</string>
+    <string name="sensorAccelerometer">முடுக்கமானி</string>
+    <string name="sensorMagneticField">காந்தப்புலம்</string>
+    <string name="sensorPressure">அழுத்தம்</string>
+    <string name="sensorTemperature">வெப்பநிலை</string>
+    <string name="sensorHumidity">ஈரப்பதம்</string>
+    <string name="sensorProximity">அருகாமை</string>
+    <string name="sensorAttitude">அணுகுமுறை</string>
+    <string name="sensorVendor">விற்பனையாளரைச் சார்ந்தது</string>
+    <string name="sensorDepth">ஆழம் (LiDAR/ToF)</string>
+    <string name="sensorCamera">நிழற்படக் கருவி</string>
+    <string name="vendorSensorTitle">விற்பனையாளர் சார்ந்த உணர்வி</string>
+    <string name="vendorSensorWarning1">உணர்வி</string>
+    <string name="vendorSensorWarning2">சரியான உணர்வி வகையைப் புகாரளிக்கவில்லை. இது விற்பனையாளர் சார்ந்ததாகத் தெரிகிறது, மேலும் அதன் பெயரிலிருந்தே அதன் வகையை நாம் யூகிக்க மட்டுமே முடியும். எனவே, இது எதிர்பார்த்தபடி வேலை செய்யாமல் போகலாம்.</string>
+    <string name="location">இடம்</string>
+    <string name="sensorNotAvailableWarningTitle">உணர்வி கிடைக்கப்பெறவில்லை.</string>
+    <string name="sensorNotAvailableWarningText1">உணர்வி</string>
+    <string name="sensorNotAvailableWarningText2">கிடைக்கவில்லை. பொதுவாக இதன் பொருள், உங்கள் சாதனத்தில் இந்த வகையான உணர்வி இல்லை.</string>
+    <string name="sensorNotAvailableWarningMoreInfo">அதிக தகவலுக்கு</string>
+    <string name="sensorNotAvailableWarningMoreInfoURL">http://phyphox.org/faq/#faqMissingSensor</string>
+    <string name="ok">சரி</string>
+    <string name="tryagain">மீண்டும் முயல்க</string>
+    <string name="doContinue">தொடர்க</string>
+    <string name="close">மூடு</string>
+    <string name="next">அடுத்து</string>
+    <string name="cancel">தவிர்க்க</string>
+    <string name="unknown">அறியப்படாதது</string>
+    <string name="rename">பெயரினை மாற்று</string>
+    <string name="delete">அழி/நீக்கு</string>
+    <string name="confirmDelete">உங்கள் தொகுப்பிலிருந்து இந்தப் பரிசோதனையை நீக்க விரும்புகிறீர்களா\?</string>
+    <string name="confirmDeleteTitle">நீக்குதலை உறுதிப்படுத்தவா\?</string>
+    <string name="stop">நிறுத்து</string>
+    <string name="start">தொடங்கு</string>
+    <string name="clear_data">தரவை அழி</string>
+    <string name="clear_data_question">பதிவான தரவுகளை அழிக்கவா\?</string>
+    <string name="clear">நீக்கு</string>
+    <string name="leave_experiment">பரிசோதனையை விட்டு வெளியேறு</string>
+    <string name="leave_experiment_question">இப்பரிசோதனையை விட்டு வெளியேற மற்றும் பதிவுத் தரவுகளை நீக்கவா\?</string>
+    <string name="leave">வெளியேறு</string>
+    <string name="timed_stop">காலச்செயலை நிறுத்து</string>
+    <string name="timed_start">காலச்செயலை துவக்கு</string>
+    <string name="loadingTitle">ஏற்றுகிறது</string>
+    <string name="loadingText">பரிசோதனையை ஏற்றுகிறது…</string>
+    <string name="loadingBluetoothConnectionText">Bluetooth சாதனத்துடன் இணைக்கிறது…</string>
+    <string name="timedRunDialogTitle">காலச்செயல்</string>
+    <string name="timedRunStartDelay">தொடக்க இடைவெளி (வினாடியில்)</string>
+    <string name="timedRunStopDelay">பரிசோதனை காலம் (வினாடியில்)</string>
+    <string name="enableTimedRun">காலச்செயலைச் செய்</string>
+    <string name="export">தரவைப் பதிவேற்று</string>
+    <string name="export_empty">இந்தப் பரிசோதனையின் உள்ளமைவு ஏற்றுமதி தொடர்பாய் எந்த தரவையும் வரையறுக்கவில்லை. இது பிழையாக இருந்தால், QR குறியீடு அல்லது உள்ளமைவு கோப்பின் மூலத்தைத் தொடர்பு கொள்ளவும்.</string>
+    <string name="export_subject">phyphox-ன் தரவுகள்</string>
+    <string name="export_pick_share">பதிவேற்று முறையைத் தேர்வுசெய்க</string>
+    <string name="share">திரையின் படத்தை பகிரவும்</string>
+    <string name="share_subject">phyphox லிருந்து காட்சிப்படம்</string>
+    <string name="share_pick_share">பகிர்வு முறையைத் தேர்வுசெய்க</string>
+    <string name="remoteServer">தொலைநிலை அணுகலை அனுமதி</string>
+    <string name="remoteServerWarning">பெறப்பட்ட தரவை தொலைநிலை அணுகலை நீங்கள் இயக்க உள்ளீர்கள். நம்பகமான நெட்வொர்க்கில் மட்டுமே நீங்கள் அவ்வாறு செய்ய வேண்டும்! மேலும், பல கார்ப்பரேட் அல்லது பல்கலைக்கழக நெட்வொர்க்குகளில் சாதனங்களுக்கு இடையே நேரடி அணுகல் சாத்தியமில்லாமல் போகலாம் என்பதை நினைவில் கொள்ளவும்.
+\n
+\nசிறந்த பாதுகாப்பு மற்றும் செயல்திறனுக்காக, tethering (Mobile Hotspot) வழியாக இந்த சாதனத்துடன் இணைக்க வேண்டும்.
+\n
+\n\"சரி\" என்பதை அழுத்திய பிறகு, அதே நெட்வொர்க்கில் உள்ள எந்த இணைய உலாவியிலிருந்தும் உங்கள் அளவீட்டை அணுகலாம்.</string>
+    <string name="remoteServerWarningTitle">பாதுகாப்பு எச்சரிக்கை!</string>
+    <string name="remoteServerNoNetwork">முதலில் WiFi-யை இணைப்பை தொலைநிலை சாதனத்திற்க்காய் அமைக்க வேண்டும். WiFi-யை இயக்கவும் அல்லது Mobile Hotspot-யை உருவாக்கவும்.</string>
+    <string name="remoteServerActive">தொலைநிலை அணுகல் இயக்கப்பட்டது. பின்வரும் இணைய முகவரியில் இருந்து இந்தப் பரிசோதனையை அணுகவும்:
+\n%1$s</string>
+    <string name="hotspotSettings">Hotspot அமைப்புகள்</string>
+    <string name="remoteColorMapWarning">தொலைநிலை இடைமுகத்தில் உள்ள வண்ண வரைபடம் தோரயமானது மட்டுமே. பயன்பாட்டில் உள்ள வரைபடத்திற்கு மாறாக, தற்போது இது x மற்றும் y அச்சில் சமமற்ற தரவு அல்லது மடக்கை அளவிடுதலைக் கையாள முடியாது. எனவே, மாறுபட்ட இடைவெளிகளில் தரவு தவறான இடத்தில் தோன்றக்கூடும்.</string>
+    <string name="remoteDepthGUIWarning">LiDAR/ToF உணர்வியினை முன்னோட்டமிடுவதும் கட்டுப்படுத்துவதும் தொலைநிலை இடைமுகத்தில் ஆதரிக்கப்படவில்லை.</string>
+    <string name="calibrated_magnetometer">அளவிடப்பட்ட காந்தமானியைப் பயன்படுத்தவும்</string>
+    <string name="force_gnss">செயற்கைக்கோள் இருப்பிடம் மட்டும்</string>
+    <string name="switchToPhoneLayout">காண்க: குறுகிய</string>
+    <string name="switchColumns1">காண்க: 1 நெடுவரிசை</string>
+    <string name="switchColumns2">காண்க: 2 நெடுவரிசை</string>
+    <string name="switchColumns3">காண்க: 3 நெடுவரிசை</string>
+    <string name="toggleBrightMode">பிரகாச பயன்முறை</string>
+    <string name="fontSize">எழுத்துரு அளவு</string>
+    <string name="show_description">பரிசோதனைத் தகவல்</string>
+    <string name="save_locally">தொகுப்பில் பரிசோதனையைச் சேர்</string>
+    <string name="save_locally_done">தொகுப்பில் பரிசோதனை வெற்றிகரமாக சேர்க்கப்பட்டது.</string>
+    <string name="save_locally_message">இந்தப் பரிசோதனை தொலைநிலை மூலத்திலிருந்து திறக்கப்பட்டுள்ளது. இதனை உங்கள் பரிசோதனைத் தொகுப்பில் சேர்க்க விரும்புகிறீர்களா\?</string>
+    <string name="save_locally_button">தொகுப்பில் சேமிக்கவும்</string>
+    <string name="save_state">பரிசோதனையின் நிலையைச் சேமிக்கவும்</string>
+    <string name="save_state_category">சேமிக்கப்பட்ட பரிசோதனை நிலைகள்</string>
+    <string name="save_state_message">இந்தப் பரிசோதனையின் நிலையை உங்கள் தரவுகளுடன் தொகுப்பில் சேமிக்கலாம் அல்லது இதர பயன்பாடுகளுடன் பகிரலாம்.</string>
+    <string name="save_state_title">தலைப்பு</string>
+    <string name="save_state_save">தொகுப்பிற்கு</string>
+    <string name="save_state_share">பகிர்</string>
+    <string name="save_state_subject">phyphox-கான பரிசோதனை நிலை</string>
+    <string name="save_state_default_title">அளவீடு</string>
+    <string name="save_state_success">உங்கள் தொகுப்பில் நிலை சேமிக்கப்பட்டுள்ளது.</string>
+    <string name="open_zip_title">பரிசோதனைகளின் தொகுப்பைத் திறக்கிறது</string>
+    <string name="open_zip_dialog_instructions">இந்த மூலத்தில் பல பரிசோதனைகள் உள்ளன. நீங்கள் அதில் ஒன்றைத் தேர்ந்தெடுத்து, திறந்து உங்கள் தொகுப்பில் சேமிக்கலாம் அல்லது கீழே உள்ள பொத்தானைப் பயன்படுத்தி அவற்றையெல்லாம் ஒரே நேரத்தில் உங்கள் தொகுப்பில் சேமிக்கலாம்.</string>
+    <string name="open_save_all">அனைத்தையும் சேமி</string>
+    <string name="timedRun">நேரப்படி இயக்கு</string>
+    <string name="pick_exportSets">பதிவேற்றவேண்டிய தரவுகளைத் தேர்ந்தெடுக்கவும்.</string>
+    <string name="pick_exportFormat">தரவின் வகையைத் தேர்ந்தெடுக்கவும்.</string>
+    <string name="noDrawableData">எடுக்கக்கூடிய தரவுகள் இல்லை.</string>
+    <string name="categoryNewExperiment">பயனரின் எளிய பரிசோதனைகள்</string>
+    <string name="categoryRawSensor">மூல உணர்விகள்</string>
+    <string name="categoryPhyphoxOrg">phyphox-க்கு பங்களிக்கவும்</string>
+    <string name="categoryPhyphoxOrgHint">phyphox-ஐ ஆதரிக்க புதிய வாய்ப்புகள் கீழே பட்டியலில் கொடுக்கப்பட்டுள்ளன.</string>
+    <string name="experimentinfo_hint">இந்தப் பரிசோதனையை எவ்வாறு பயன்படுத்துவது என்பதை அறிய \"பரிசோதனைத் தகவல்\"-ஐ பார்க்கவும்.</string>
+    <string name="start_hint"></string>
+    <string name="remoteCameraPreviewWarning">நிழற்படவியினை முன்னோட்டமிடுவதும் கட்டுப்படுத்துவதும் தொலைநிலை இடைமுகத்தில் ஆதரிக்கப்படவில்லை.</string>
+    <string name="download">பதிவிறக்கு</string>
+    <string name="savedToDownloadsMessage">கோப்பு Downloads-ல் சேமிக்கப்பட்டது</string>
+    <string name="permissionRequiredToSaveToDownloads">Downloads ல் கோப்புகளைச் சேமிக்க சேமிப்பகத்தின் அனுமதி தேவை.</string>
+    <string name="errorWritingStateFile">நிலைக் கோப்பை எழுதுவதில் பிழை:</string>
+</resources>
