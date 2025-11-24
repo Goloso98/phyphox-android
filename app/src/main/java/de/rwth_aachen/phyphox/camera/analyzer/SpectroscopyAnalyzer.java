@@ -9,6 +9,7 @@ import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.fullScreenVboT
 import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.fullScreenVboVertices;
 import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.fullScreenVertexShader;
 import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.interpolatingHeightFullScreenVertexShader;
+import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.interpolatingWidthFullScreenVertexShader;
 
 import android.graphics.RectF;
 import android.opengl.EGL14;
@@ -25,7 +26,7 @@ import de.rwth_aachen.phyphox.camera.model.CameraSettingState;
 
 public class SpectroscopyAnalyzer extends AnalyzingModule{
 
-    final static String verticalReductionFragmentShader =
+    final static String verticalHeightReductionFragmentShader =
             "precision highp float;" +
                     "uniform sampler2D texture;" +
                     "varying vec2 texPosition1;" +
@@ -47,6 +48,29 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
                     "   gl_FragColor = result;" +
                     "}";
 
+    final static String verticalWidthReductionFragmentShader =
+            "precision highp float;" +
+                    "uniform sampler2D texture;" +
+                    "varying vec2 texPosition1;" +
+                    "varying vec2 texPosition2;" +
+                    "varying vec2 texPosition3;" +
+                    "varying vec2 texPosition4;" +
+                    "void main () {" +
+                    "   vec4 result = texture2D(texture, texPosition1);" +
+                    "   if (texPosition2.x <= 1.0)" +
+                    "       result += texture2D(texture, texPosition2);" +
+                    "   if (texPosition3.x <= 1.0)" +
+                    "       result += texture2D(texture, texPosition3);" +
+                    "   if (texPosition4.x <= 1.0)" +
+                    "       result += texture2D(texture, texPosition4);" +
+                    "   float overflow = floor(result.g);" +
+                    "   result.g = result.g - overflow;" +
+                    "   result.r = result.r + overflow / 255.0;" +
+                    "   result.b = result.b / 4.0;" +
+                    "   gl_FragColor = result;" +
+                    "}";
+
+
 
     boolean linear = false;
     DataBuffer out;
@@ -66,15 +90,23 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
     ByteBuffer resultBuffer = null;
     int resultBufferSize = 0;
 
-    public SpectroscopyAnalyzer(DataBuffer out, DataBuffer pixelPosition, boolean linear){
+    private SpectrumOrientation analysisSpectrumOrientation;
+
+    public void setAnalysisSpectrumOrientation(SpectrumOrientation analysisSpectrumOrientation) {
+        this.analysisSpectrumOrientation = analysisSpectrumOrientation;
+    }
+
+    public SpectroscopyAnalyzer(DataBuffer out, DataBuffer pixelPosition, boolean linear, SpectrumOrientation analysisSpectrumOrientation){
         this.linear = linear;
         this.out = out;
         this.pixelPosition = pixelPosition;
+        this.analysisSpectrumOrientation = analysisSpectrumOrientation;
     }
 
     @Override
     public void prepare() {
         // Prepare spectroscopy conversion program
+        Log.d("AnalyzingOpenGLRenderer", " prepare spectrumOrientation: analysisSpectrumOrientation "+ this.analysisSpectrumOrientation.name());
         spectroscopyProgram = buildProgram(fullScreenVertexShader, linear ? luminanceFragmentShader : lumaFragmentShader);
         spectroscopyProgramVerticesHandle = GLES20.glGetAttribLocation(spectroscopyProgram, "vertices");
         spectroscopyProgramTexCoordinatesHandle = GLES20.glGetAttribLocation(spectroscopyProgram, "texCoordinates");
@@ -83,7 +115,12 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
         spectroscopyProgramPassepartoutMinHandle = GLES20.glGetUniformLocation(spectroscopyProgram, "passepartoutMin");
         spectroscopyProgramPassepartoutMaxHandle = GLES20.glGetUniformLocation(spectroscopyProgram, "passepartoutMax");
 
-        verticalReductionProgram = buildProgram(interpolatingHeightFullScreenVertexShader, verticalReductionFragmentShader);
+        if(isDispersionHorizontal()){
+            verticalReductionProgram = buildProgram(interpolatingHeightFullScreenVertexShader, verticalHeightReductionFragmentShader);
+        } else {
+            verticalReductionProgram = buildProgram(interpolatingWidthFullScreenVertexShader, verticalWidthReductionFragmentShader);
+        }
+
         reductionProgramVerticesHandle = GLES20.glGetAttribLocation(verticalReductionProgram, "vertices");
         reductionProgramTexCoordinatesHandle = GLES20.glGetAttribLocation(verticalReductionProgram, "texCoordinates");
         reductionProgramTextureHandle = GLES20.glGetUniformLocation(verticalReductionProgram, "texture");
@@ -93,7 +130,10 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
         checkGLError("SpectroscopyAnalyzer: prepare");
     }
 
-    int passepartoutWidth = 0;
+    private boolean isDispersionHorizontal() {
+        return analysisSpectrumOrientation == SpectrumOrientation.HORIZONTAL_BLUE_RIGHT ||
+                analysisSpectrumOrientation == SpectrumOrientation.HORIZONTAL_RED_RIGHT;
+    }
     @Override
     public void analyze(float[] camMatrix, RectF passepartout) {
         // --- Phase 1: OpenGL Drawing/Downsampling ---
@@ -114,19 +154,24 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
         }
         resultBuffer.rewind();
 
-        // --- Phase 3: Processing ---
-
         // Read pixels from the OpenGL framebuffer
         GLES20.glReadPixels(0, 0, outW, outH, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, resultBuffer);
         resultBuffer.rewind();
 
-        double[] columnSums = new double[outW];
-
         byte[] bytes = new byte[resultBuffer.remaining()];
         resultBuffer.get(bytes);
 
+        // --- Phase 3: Processing ---
+
+        final boolean isHorizontal = isDispersionHorizontal();
+        // Define which dimension is the dispersion (length) and which is the averaging (width)
+        final int dispersionLength = isHorizontal ? outW : outH;
+        final int averagingWidth = isHorizontal ? outH : outW;
+
         // The normalization factor is applied to all sums
-        final double normalizationFactor = (double) (outH * Math.pow(4, nDownsampleSteps));
+        final double normalizationFactor = (double) (averagingWidth * Math.pow(4, nDownsampleSteps));
+
+        double[] dispersionSums = new double[dispersionLength];
 
         for (int pixelIndex = 0; pixelIndex < bytes.length / 4 ; pixelIndex++) {
             int byteIndex = pixelIndex * 4;
@@ -134,26 +179,30 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
             int g = bytes[byteIndex+1] & 0xff;
             long luminance  = (r << 8) + g;
 
-            int columnIndex = pixelIndex % outW;
+            // Calculate the index along the dispersion axis
+            int dispersionIndex = isHorizontal ? (pixelIndex % outW) : (pixelIndex / outW);
 
-            columnSums[columnIndex] += (double) luminance;
+            dispersionSums[dispersionIndex] += (double) luminance;
         }
 
         // Normalize the final aggregated sums by the factor
-        for (int i = 0; i < outW; i++) {
-            columnSums[i] /= normalizationFactor;
+        for (int i = 0; i < dispersionLength; i++) {
+            dispersionSums[i] /= normalizationFactor;
         }
 
         // Calculate the normalized passepartout boundaries
         final float normalizedYMin = 1.0f - Math.min(passepartout.top, passepartout.bottom);
         final float normalizedYMax = 1.0f - Math.max(passepartout.top, passepartout.bottom);
 
-        // Calculate the region of interest indices
-        int roiStartIndex = (int) (normalizedYMax * outW);
-        int roiEndIndex = (int) (normalizedYMin * outW);
-        passepartoutWidth = roiEndIndex - roiStartIndex;
+        final float normalizedXMin = 1.0f - Math.min(passepartout.left, passepartout.right);
+        final float normalizedXMax = 1.0f - Math.max(passepartout.left, passepartout.right);
 
-        latestResult = Arrays.copyOfRange(columnSums, roiStartIndex, roiEndIndex);
+        // Calculate the region of interest indices
+        int roiStartIndex = (int) ((isHorizontal? normalizedYMax : normalizedXMax) * dispersionLength);
+        int roiEndIndex = (int) ((isHorizontal? normalizedYMin : normalizedXMin) * dispersionLength);
+
+        latestResult = Arrays.copyOfRange(dispersionSums, roiStartIndex, roiEndIndex);
+        Log.d("AnalyzingOpenGLRenderer", "analyze");
 
     }
 
@@ -164,12 +213,35 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
                         (1.0e9/60.0) / state.getCurrentShutterValue() : 1.0;
 
         out.clear(true);
-        int count = 0;
+        pixelPosition.clear(true); // Clear pixel position buffer too
 
         if (latestResult != null) {
-            for (double v : latestResult) {
-                pixelPosition.append(++count);
-                out.append(v * exposureFactor);
+            Log.d("AnalyzingOpenGLRenderer", "writeToBuffers: latestResult");
+
+            // Check if the resulting array needs to be reversed so that
+            // the pixel position always increases from Blue (Short-Wavelength) to Red (Long-Wavelength).
+            boolean reverseResult = false;
+
+            if (analysisSpectrumOrientation == SpectrumOrientation.VERTICAL_RED_UP ||
+                    analysisSpectrumOrientation == SpectrumOrientation.HORIZONTAL_BLUE_RIGHT) {
+                // For Vertical Red Up: Array goes from Bottom (Blue) to Top (Red). Need to reverse if data is read Top-to-Bottom.
+                // However, since GLES reads from bottom-up, and the passepartout indices are calculated
+                // from the GLES space (bottom-up), this might need testing.
+                // For Horizontal Blue Right: Array goes from Left (Red) to Right (Blue). Needs reversal.
+                reverseResult = true;
+            }
+
+            double[] finalResult = latestResult;
+            if (reverseResult) {
+                finalResult = new double[latestResult.length];
+                for (int i = 0; i < latestResult.length; i++) {
+                    finalResult[i] = latestResult[latestResult.length - 1 - i];
+                }
+            }
+
+            for (int i = 0; i < finalResult.length; i++) {
+                pixelPosition.append(i);
+                out.append(finalResult[i] * exposureFactor);
             }
         }
 

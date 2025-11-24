@@ -60,7 +60,7 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
     Lock dataLock;
     List<AnalyzingModule> analyzingModules = new ArrayList<>();
     ExposureAnalyzer exposureAnalyzer;
-    Deque<AnalyzingOpenGLRendererPreviewOutput> previewOutputs = new ConcurrentLinkedDeque<>();
+    public Deque<AnalyzingOpenGLRendererPreviewOutput> previewOutputs = new ConcurrentLinkedDeque<>();
 
     public boolean measuring = false;
     ExperimentTimeReference experimentTimeReference;
@@ -69,9 +69,10 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
 
     Long lastPreviewFrame = 0L;
 
-    Boolean isFeatureSpectroscopy = false;
+    Boolean isFeatureSpectroscopy;
+    SpectrumOrientation spectrumOrientation;
 
-    public AnalyzingOpenGLRenderer(CameraInput cameraInput, Lock lock, StateFlow<CameraSettingState> cameraSettingValueState, ExposureStatisticsListener exposureStatisticsListener) {
+    public AnalyzingOpenGLRenderer(CameraInput cameraInput, Lock lock, StateFlow<CameraSettingState> cameraSettingValueState, ExposureStatisticsListener exposureStatisticsListener, SpectrumOrientation spectrumOrientation) {
         this.cameraSettingValueState = cameraSettingValueState;
         this.experimentTimeReference = cameraInput.experimentTimeReference;
 
@@ -82,6 +83,7 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
         this.isoOutput = cameraInput.getIsoDataBuffer();
 
         isFeatureSpectroscopy = cameraInput.isFeatureSpectroscopy();
+        this.spectrumOrientation = spectrumOrientation;
 
         this.dataLock = lock;
         if (cameraInput.getDataLuminance() != null) {
@@ -106,7 +108,11 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
         }
         if(cameraInput.getDataPixelPosition() != null){
             if(cameraInput.isFeatureSpectroscopy()){
-                analyzingModules.add(new SpectroscopyAnalyzer(cameraInput.getDataLuminance(), cameraInput.getDataPixelPosition(),true));
+                analyzingModules.add(new SpectroscopyAnalyzer(
+                        cameraInput.getDataLuminance(),
+                        cameraInput.getDataPixelPosition(),
+                        true,
+                        spectrumOrientation));
             }
         }
 
@@ -187,7 +193,7 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
 
         checkGLError("prepareOpenGL");
 
-        AnalyzingModule.init(w, h, eglContext, eglDisplay, eglConfig, eglCameraTexture, isFeatureSpectroscopy);
+        AnalyzingModule.init(w, h, eglContext, eglDisplay, eglConfig, eglCameraTexture, isFeatureSpectroscopy, spectrumOrientation);
         for (AnalyzingModule analyzingModule : analyzingModules) {
             analyzingModule.prepare();
         }
@@ -253,6 +259,7 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
             return;
         executor.execute(
                 () -> {
+                    Log.d("Renderer","draw()");
                     if (!running || eglContext == null || cameraSurfaceTexture == null)
                         return;
 
@@ -326,17 +333,43 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
         );
     }
 
+    boolean hasInstanceOfSpectroscopyAnalyzer(){
+        for(AnalyzingModule analyzingModule: analyzingModules){
+            if(analyzingModule instanceof SpectroscopyAnalyzer){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void setSpectrumOrientation(SpectrumOrientation spectrumOrientation) {
+        this.spectrumOrientation = spectrumOrientation;
+    }
+
     @Override
     public void onSurfaceRequested(@NonNull SurfaceRequest request) {
         previewWidth = request.getResolution().getWidth();
         previewHeight = request.getResolution().getHeight();
-        Log.d("AnalyzingOpenGLRenderer", "Surface requested: " + previewWidth + "x" + previewHeight);
+
+        if(isFeatureSpectroscopy && hasInstanceOfSpectroscopyAnalyzer()){
+            for (int i = 0; i < analyzingModules.size(); i++) {
+                if (analyzingModules.get(i) instanceof SpectroscopyAnalyzer) {
+                    SpectroscopyAnalyzer spectroscopyAnalyzer = ((SpectroscopyAnalyzer) analyzingModules.get(i));
+                    spectroscopyAnalyzer.setAnalysisSpectrumOrientation(this.spectrumOrientation);
+                    spectroscopyAnalyzer.resultBuffer = null;
+                }
+            }
+        }
 
         executor.execute(
                 () -> {
                     if (eglContext == null)
                         prepareOpenGL(previewWidth, previewHeight);
 
+                    if(isFeatureSpectroscopy && hasInstanceOfSpectroscopyAnalyzer()){
+                        prepareOpenGL(previewWidth, previewHeight);
+                    }
+                    Log.d("AnalyzingOpenGLRenderer", "after eglContext");
                     cameraSurfaceTexture = new SurfaceTexture(eglCameraTexture);
                     cameraSurfaceTexture.setDefaultBufferSize(previewWidth, previewHeight);
                     cameraSurfaceTexture.setOnFrameAvailableListener(this);

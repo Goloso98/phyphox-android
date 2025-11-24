@@ -36,7 +36,7 @@ public abstract class AnalyzingModule {
 
     static int[] downsamplingTextures = new int[nDownsampleSteps];
 
-    static public void init(int w, int h, EGLContext eglContext, EGLDisplay eglDisplay, EGLConfig eglConfig, int cameraTexture,  boolean verticalReduction) {
+    static public void init(int w, int h, EGLContext eglContext, EGLDisplay eglDisplay, EGLConfig eglConfig, int cameraTexture,  boolean verticalReduction, SpectrumOrientation spectrumOrientation) {
         AnalyzingModule.w = w;
         AnalyzingModule.h = h;
         AnalyzingModule.eglContext = eglContext;
@@ -68,8 +68,15 @@ public abstract class AnalyzingModule {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 
         for (int i = 0; i < nDownsampleSteps; i++) {
-            wDownsampleStep[i] = verticalReduction ? w : ((i == 0) ? ((w + 3) / 4) : ((wDownsampleStep[i-1] + 3) / 4));
-            hDownsampleStep[i] = (i == 0) ? ((h + 3) / 4) : ((hDownsampleStep[i-1] + 3) / 4);
+            if(spectrumOrientation == SpectrumOrientation.HORIZONTAL_BLUE_RIGHT ||
+                    spectrumOrientation == SpectrumOrientation.HORIZONTAL_RED_RIGHT){
+                wDownsampleStep[i] = verticalReduction ? w  : ((i == 0) ? ((w + 3) / 4) : ((wDownsampleStep[i-1] + 3) / 4));
+                hDownsampleStep[i] =(i == 0) ? ((h + 3) / 4) : ((hDownsampleStep[i-1] + 3) / 4);
+            } else {
+                wDownsampleStep[i] = ((i == 0) ? ((w + 3) / 4) : ((wDownsampleStep[i-1] + 3) / 4));
+                hDownsampleStep[i] = verticalReduction ? h  : (i == 0) ? ((h + 3) / 4) : ((hDownsampleStep[i-1] + 3) / 4);
+            }
+
 
             int[] surfaceDownsampleAttr = {
                     EGL14.EGL_WIDTH, wDownsampleStep[i],

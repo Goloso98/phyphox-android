@@ -28,6 +28,7 @@ import de.rwth_aachen.phyphox.DataBuffer
 import de.rwth_aachen.phyphox.DataOutput
 import de.rwth_aachen.phyphox.ExperimentTimeReference
 import de.rwth_aachen.phyphox.camera.analyzer.AnalyzingOpenGLRenderer
+import de.rwth_aachen.phyphox.camera.analyzer.SpectrumOrientation
 import de.rwth_aachen.phyphox.camera.helper.CameraHelper
 import de.rwth_aachen.phyphox.camera.model.CameraSettingMode
 import de.rwth_aachen.phyphox.camera.model.CameraState
@@ -74,7 +75,7 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
 
     val dataLock: Lock
 
-    val _cameraSettingState: MutableStateFlow<CameraSettingState>
+    private val _cameraSettingState: MutableStateFlow<CameraSettingState>
     public val cameraSettingState: StateFlow<CameraSettingState>
 
     var lifecycleOwner: LifecycleOwner? = null
@@ -168,9 +169,17 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
     }
 
     private fun startCamera() {
-        if (analyzingOpenGLRenderer == null)
-            analyzingOpenGLRenderer = AnalyzingOpenGLRenderer(this, dataLock, cameraSettingState, this)
+        if(analyzingOpenGLRenderer == null){
+            analyzingOpenGLRenderer = AnalyzingOpenGLRenderer(
+                this,
+                dataLock,
+                cameraSettingState,
+                this,
+                cameraSettingState.value.spectrumAnalysisOrientation)
+        }
 
+
+        analyzingOpenGLRenderer?.setSpectrumOrientation(cameraSettingState.value.spectrumAnalysisOrientation)
         val cameraSelector = CameraHelper.cameraLensToSelector(cameraSettingState.value.currentLens)
 
         val previewBuilder = setUpPreviewUseCase(cameraSelector) ?: run {
@@ -208,6 +217,18 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
                     )
                 )
             }
+        }
+    }
+
+    fun changeSpectrumAnalysisOrientation(currentOrientation: SpectrumOrientation){
+
+        val newState = cameraSettingState.value.copy(
+            spectrumAnalysisOrientation = currentOrientation,
+            cameraState = CameraState.RESTART
+        )
+
+        lifecycleOwner?.lifecycleScope?.launch {
+            _cameraSettingState.emit(newState)
         }
     }
 
