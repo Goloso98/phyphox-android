@@ -20,7 +20,6 @@ import androidx.camera.core.SurfaceRequest;
 
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executor;
@@ -29,7 +28,6 @@ import java.util.concurrent.locks.Lock;
 
 import de.rwth_aachen.phyphox.DataBuffer;
 import de.rwth_aachen.phyphox.ExperimentTimeReference;
-import de.rwth_aachen.phyphox.Helper.RGB;
 import de.rwth_aachen.phyphox.camera.CameraInput;
 import de.rwth_aachen.phyphox.camera.model.CameraSettingState;
 import de.rwth_aachen.phyphox.camera.ui.CameraPreviewScreen;
@@ -48,6 +46,8 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
     Executor executor = Executors.newSingleThreadExecutor();
     public int previewWidth = 0;
     public int previewHeight = 0;
+
+    AnalyzerConfig currentConfig;
     EGLDisplay eglDisplay = null;
     EGLContext eglContext = null;
     EGLConfig eglConfig = null;
@@ -72,7 +72,7 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
     Boolean isFeatureSpectroscopy;
     SpectrumOrientation spectrumOrientation;
 
-    public AnalyzingOpenGLRenderer(CameraInput cameraInput, Lock lock, StateFlow<CameraSettingState> cameraSettingValueState, ExposureStatisticsListener exposureStatisticsListener, SpectrumOrientation spectrumOrientation) {
+    public AnalyzingOpenGLRenderer(CameraInput cameraInput, Lock lock, StateFlow<CameraSettingState> cameraSettingValueState, ExposureStatisticsListener exposureStatisticsListener) {
         this.cameraSettingValueState = cameraSettingValueState;
         this.experimentTimeReference = cameraInput.experimentTimeReference;
 
@@ -83,9 +83,11 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
         this.isoOutput = cameraInput.getIsoDataBuffer();
 
         isFeatureSpectroscopy = cameraInput.isFeatureSpectroscopy();
-        this.spectrumOrientation = spectrumOrientation;
+        this.spectrumOrientation = cameraSettingValueState.getValue().getSpectrumAnalysisOrientation();
 
         this.dataLock = lock;
+
+
         if (cameraInput.getDataLuminance() != null) {
             if(cameraInput.isFeaturePhotometry()){
                 analyzingModules.add(new LuminanceAnalyzer(cameraInput.getDataLuminance(), true));
@@ -193,11 +195,22 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
 
         checkGLError("prepareOpenGL");
 
-        AnalyzingModule.init(w, h, eglContext, eglDisplay, eglConfig, eglCameraTexture, isFeatureSpectroscopy, spectrumOrientation);
+        this.currentConfig = new AnalyzerConfig(w,h,eglContext,eglDisplay,eglConfig, eglCameraTexture);
+
         for (AnalyzingModule analyzingModule : analyzingModules) {
+
+            if(analyzingModule instanceof SpectroscopyAnalyzer){
+                ((SpectroscopyAnalyzer) analyzingModule).setAnalysisSpectrumOrientation(this.spectrumOrientation);
+            }
+
+            analyzingModule.release();
+            analyzingModule.setupGL(this.currentConfig);
             analyzingModule.prepare();
         }
 
+
+        exposureAnalyzer.release();
+        exposureAnalyzer.setupGL(this.currentConfig);
         exposureAnalyzer.prepare();
 
         checkGLError("prepareOpenGL (modules)");
@@ -333,17 +346,21 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
         );
     }
 
-    boolean hasInstanceOfSpectroscopyAnalyzer(){
-        for(AnalyzingModule analyzingModule: analyzingModules){
-            if(analyzingModule instanceof SpectroscopyAnalyzer){
-                return true;
-            }
-        }
-        return false;
-    }
-
     public void setSpectrumOrientation(SpectrumOrientation spectrumOrientation) {
         this.spectrumOrientation = spectrumOrientation;
+
+        // If we are currently running, we might need to trigger a re-setup.
+        // However, usually orientation changes come with a surface change or configuration change
+        // which triggers onSurfaceRequested anyway.
+        // If dynamic updates are needed without surface change:
+        /*
+        executor.execute(() -> {
+            if (running) {
+                // Re-run setupGL for spectroscopy modules specifically or all modules
+                prepareOpenGL(previewWidth, previewHeight);
+            }
+        });
+        */
     }
 
     @Override
@@ -351,25 +368,10 @@ public class AnalyzingOpenGLRenderer implements Preview.SurfaceProvider, Surface
         previewWidth = request.getResolution().getWidth();
         previewHeight = request.getResolution().getHeight();
 
-        if(isFeatureSpectroscopy && hasInstanceOfSpectroscopyAnalyzer()){
-            for (int i = 0; i < analyzingModules.size(); i++) {
-                if (analyzingModules.get(i) instanceof SpectroscopyAnalyzer) {
-                    SpectroscopyAnalyzer spectroscopyAnalyzer = ((SpectroscopyAnalyzer) analyzingModules.get(i));
-                    spectroscopyAnalyzer.setAnalysisSpectrumOrientation(this.spectrumOrientation);
-                    spectroscopyAnalyzer.resultBuffer = null;
-                }
-            }
-        }
-
         executor.execute(
                 () -> {
-                    if (eglContext == null)
-                        prepareOpenGL(previewWidth, previewHeight);
+                    prepareOpenGL(previewWidth, previewHeight);
 
-                    if(isFeatureSpectroscopy && hasInstanceOfSpectroscopyAnalyzer()){
-                        prepareOpenGL(previewWidth, previewHeight);
-                    }
-                    Log.d("AnalyzingOpenGLRenderer", "after eglContext");
                     cameraSurfaceTexture = new SurfaceTexture(eglCameraTexture);
                     cameraSurfaceTexture.setDefaultBufferSize(previewWidth, previewHeight);
                     cameraSurfaceTexture.setOnFrameAvailableListener(this);

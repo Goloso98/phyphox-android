@@ -143,6 +143,7 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
                         setupZoomControl()
                         loadAndSetupExposureSettingRanges()
                         updateCaptureRequestOptions(cameraSettingState)
+                        updateSpectroscopyAnalyzerOrientation()
                         _cameraSettingState.emit(
                                 _cameraSettingState.value.copy(
                                         cameraState = CameraState.RUNNING
@@ -174,12 +175,9 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
                 this,
                 dataLock,
                 cameraSettingState,
-                this,
-                cameraSettingState.value.spectrumAnalysisOrientation)
+                this)
         }
 
-
-        analyzingOpenGLRenderer?.setSpectrumOrientation(cameraSettingState.value.spectrumAnalysisOrientation)
         val cameraSelector = CameraHelper.cameraLensToSelector(cameraSettingState.value.currentLens)
 
         val previewBuilder = setUpPreviewUseCase(cameraSelector) ?: run {
@@ -229,6 +227,12 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
 
         lifecycleOwner?.lifecycleScope?.launch {
             _cameraSettingState.emit(newState)
+        }
+    }
+
+    private fun updateSpectroscopyAnalyzerOrientation(){
+        if(isFeatureSpectroscopy() && analyzingOpenGLRenderer != null){
+            analyzingOpenGLRenderer?.setSpectrumOrientation(cameraSettingState.value.spectrumAnalysisOrientation)
         }
     }
 

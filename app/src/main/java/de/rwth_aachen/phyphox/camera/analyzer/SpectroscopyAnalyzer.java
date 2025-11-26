@@ -92,21 +92,41 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
 
     private SpectrumOrientation analysisSpectrumOrientation;
 
-    public void setAnalysisSpectrumOrientation(SpectrumOrientation analysisSpectrumOrientation) {
-        this.analysisSpectrumOrientation = analysisSpectrumOrientation;
-    }
-
     public SpectroscopyAnalyzer(DataBuffer out, DataBuffer pixelPosition, boolean linear, SpectrumOrientation analysisSpectrumOrientation){
+        super();
         this.linear = linear;
         this.out = out;
         this.pixelPosition = pixelPosition;
         this.analysisSpectrumOrientation = analysisSpectrumOrientation;
     }
 
+    public void setAnalysisSpectrumOrientation(SpectrumOrientation analysisSpectrumOrientation) {
+        this.analysisSpectrumOrientation = analysisSpectrumOrientation;
+    }
+
+    @Override
+    protected void configureDownSampling() {
+        nDownsampleSteps = 4;
+    }
+
+    @Override
+    protected void calculateStepDimensions(int i) {
+        boolean isHorizontalSpectrum = isDispersionHorizontal();
+
+        if (isHorizontalSpectrum ) {
+            wDownsampleStep[i] = analyzerConfig.width(); // Keep width, shrink height
+            int prevH = (i == 0) ? analyzerConfig.height() : hDownsampleStep[i - 1];
+            hDownsampleStep[i] = (prevH + 3) / 4;
+        } else {
+            hDownsampleStep[i] = analyzerConfig.height(); // Keep height, shrink width
+            int prevW = (i == 0) ? analyzerConfig.width() : wDownsampleStep[i - 1];
+            wDownsampleStep[i] = (prevW + 3) / 4;
+        }
+    }
+
     @Override
     public void prepare() {
         // Prepare spectroscopy conversion program
-        Log.d("AnalyzingOpenGLRenderer", " prepare spectrumOrientation: analysisSpectrumOrientation "+ this.analysisSpectrumOrientation.name());
         spectroscopyProgram = buildProgram(fullScreenVertexShader, linear ? luminanceFragmentShader : lumaFragmentShader);
         spectroscopyProgramVerticesHandle = GLES20.glGetAttribLocation(spectroscopyProgram, "vertices");
         spectroscopyProgramTexCoordinatesHandle = GLES20.glGetAttribLocation(spectroscopyProgram, "texCoordinates");
@@ -201,8 +221,16 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
         int roiStartIndex = (int) ((isHorizontal? normalizedYMax : normalizedXMax) * dispersionLength);
         int roiEndIndex = (int) ((isHorizontal? normalizedYMin : normalizedXMin) * dispersionLength);
 
-        latestResult = Arrays.copyOfRange(dispersionSums, roiStartIndex, roiEndIndex);
-        Log.d("AnalyzingOpenGLRenderer", "analyze");
+        // Clamp indices to safe bounds
+        roiStartIndex = Math.max(0, Math.min(roiStartIndex, dispersionSums.length));
+        roiEndIndex = Math.max(0, Math.min(roiEndIndex, dispersionSums.length));
+
+        if (roiStartIndex < roiEndIndex) {
+            latestResult = Arrays.copyOfRange(dispersionSums, roiStartIndex, roiEndIndex);
+        } else {
+            // Handle edge case where indices might be flipped or equal
+            latestResult = Arrays.copyOfRange(dispersionSums, roiEndIndex, roiStartIndex);
+        }
 
     }
 
@@ -216,20 +244,10 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
         pixelPosition.clear(true); // Clear pixel position buffer too
 
         if (latestResult != null) {
-            Log.d("AnalyzingOpenGLRenderer", "writeToBuffers: latestResult");
-
             // Check if the resulting array needs to be reversed so that
             // the pixel position always increases from Blue (Short-Wavelength) to Red (Long-Wavelength).
-            boolean reverseResult = false;
-
-            if (analysisSpectrumOrientation == SpectrumOrientation.VERTICAL_RED_UP ||
-                    analysisSpectrumOrientation == SpectrumOrientation.HORIZONTAL_BLUE_RIGHT) {
-                // For Vertical Red Up: Array goes from Bottom (Blue) to Top (Red). Need to reverse if data is read Top-to-Bottom.
-                // However, since GLES reads from bottom-up, and the passepartout indices are calculated
-                // from the GLES space (bottom-up), this might need testing.
-                // For Horizontal Blue Right: Array goes from Left (Red) to Right (Blue). Needs reversal.
-                reverseResult = true;
-            }
+            boolean reverseResult = analysisSpectrumOrientation == SpectrumOrientation.VERTICAL_RED_UP ||
+                    analysisSpectrumOrientation == SpectrumOrientation.HORIZONTAL_BLUE_RIGHT;
 
             double[] finalResult = latestResult;
             if (reverseResult) {
@@ -249,23 +267,23 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
     }
 
     public void makeCurrent(EGLSurface eglSurface, int w, int h) {
-        if (!EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
+        if (!EGL14.eglMakeCurrent(analyzerConfig.eglDisplay(), eglSurface, eglSurface, analyzerConfig.eglContext())) {
             throw new RuntimeException("Camera preview: eglMakeCurrent failed");
         }
         GLES20.glViewport(0, 0, w, h);
     }
 
     void drawLuminance(float[] camMatrix, RectF passepartout) {
-        makeCurrent(analyzingSurface, w, h);
+        makeCurrent(analyzingSurface, analyzerConfig.width(), analyzerConfig.height());
 
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
 
         // Calculate scissor rect
-        int scissorX = (int)Math.floor(w*(1.0-Math.max(passepartout.top, passepartout.bottom)));
-        int scissorY = (int)Math.floor(h*(1.0-Math.max(passepartout.left, passepartout.right)));
-        int scissorW = (int)Math.ceil(w*Math.abs(passepartout.height()));
-        int scissorH = (int)Math.ceil(h*Math.abs(passepartout.width()));
+        int scissorX = (int)Math.floor(analyzerConfig.width() *(1.0-Math.max(passepartout.top, passepartout.bottom)));
+        int scissorY = (int)Math.floor(analyzerConfig.height() *(1.0-Math.max(passepartout.left, passepartout.right)));
+        int scissorW = (int)Math.ceil(analyzerConfig.width() *Math.abs(passepartout.height()));
+        int scissorH = (int)Math.ceil(analyzerConfig.height() *Math.abs(passepartout.width()));
 
         GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
         GLES20.glScissor(scissorX, scissorY, scissorW, scissorH);
@@ -281,7 +299,7 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
         GLES20.glVertexAttribPointer(spectroscopyProgramTexCoordinatesHandle, 2, GLES20.GL_FLOAT, false, 0, 0);
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-        GLES20.glBindTexture(GL_TEXTURE_EXTERNAL_OES, cameraTexture);
+        GLES20.glBindTexture(GL_TEXTURE_EXTERNAL_OES, analyzerConfig.cameraTexture());
         GLES20.glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
         GLES20.glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
         GLES20.glUniform1i(spectroscopyProgramTextureHandle, 0);
@@ -317,20 +335,20 @@ public class SpectroscopyAnalyzer extends AnalyzingModule{
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, downsamplingTextures[step]);
-        EGL14.eglBindTexImage(eglDisplay, (step == 0) ? analyzingSurface : downsampleSurfaces[step-1], EGL14.EGL_BACK_BUFFER);
+        EGL14.eglBindTexImage(analyzerConfig.eglDisplay(), (step == 0) ? analyzingSurface : downsampleSurfaces[step-1], EGL14.EGL_BACK_BUFFER);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glUniform1i(reductionProgramTextureHandle, 0);
 
-        GLES20.glUniform2f(reductionResSourceHandle, step == 0 ? w : wDownsampleStep[step-1], step == 0 ? h : hDownsampleStep[step-1]);
+        GLES20.glUniform2f(reductionResSourceHandle, step == 0 ? analyzerConfig.width() : wDownsampleStep[step-1], step == 0 ? analyzerConfig.height() : hDownsampleStep[step-1]);
         GLES20.glUniform2f(reductionResTargetHandle, wDownsampleStep[step], hDownsampleStep[step]);
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
 
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-        EGL14.eglReleaseTexImage(eglDisplay, (step == 0) ? analyzingSurface : downsampleSurfaces[step-1], EGL14.EGL_BACK_BUFFER);
+        EGL14.eglReleaseTexImage(analyzerConfig.eglDisplay(), (step == 0) ? analyzingSurface : downsampleSurfaces[step-1], EGL14.EGL_BACK_BUFFER);
         GLES20.glDisableVertexAttribArray(reductionProgramVerticesHandle);
         GLES20.glDisableVertexAttribArray(reductionProgramTexCoordinatesHandle);
 
