@@ -1432,7 +1432,7 @@ public class ExpView implements Serializable{
 
         private String gridColor;
 
-        private String calibrationMode;
+        private SpectroscopyCalibrationManager.CalibrationMode calibrationMode;
         private boolean needsCalibration;
 
         GraphView.scaleMode scaleMinX = GraphView.scaleMode.auto;
@@ -1638,7 +1638,7 @@ public class ExpView implements Serializable{
                 gv.graphSetup.incrementalX = pu;
         }
 
-        protected void setCalibrationMode(String calibrationMode){
+        protected void setCalibrationMode(SpectroscopyCalibrationManager.CalibrationMode calibrationMode){
             this.calibrationMode = calibrationMode;
         }
 
@@ -1690,7 +1690,7 @@ public class ExpView implements Serializable{
             interactiveGV.setShowColorScale(showColorScale);
             interactiveGV.setCalibrationMode(calibrationMode, c,  self.parent);
             interactiveGV.setNeedsCalibration(needsCalibration, c,  self.parent);
-            if(calibrationMode == "xLinear"){
+            if(calibrationMode == SpectroscopyCalibrationManager.CalibrationMode.X_LINEAR){
                 interactiveGV.setSlopeBuffer(experiment.getBuffer(outputs.get(0)));
                 interactiveGV.setInterceptBuffer(experiment.getBuffer(outputs.get(1)));
             }

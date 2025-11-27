@@ -44,15 +44,15 @@ public class GraphView extends View {
     }
 
     public static Style styleFromStr(String str) {
-        switch (str) {
-            case "lines": return Style.lines;
-            case "dots": return Style.dots;
-            case "hbars": return Style.hbars;
-            case "vbars": return Style.vbars;
-            case "map": return Style.mapXY;
-            case "mapZ": return Style.mapZ;
-        }
-        return Style.unknown;
+        return switch (str) {
+            case "lines" -> Style.lines;
+            case "dots" -> Style.dots;
+            case "hbars" -> Style.hbars;
+            case "vbars" -> Style.vbars;
+            case "map" -> Style.mapXY;
+            case "mapZ" -> Style.mapZ;
+            default -> Style.unknown;
+        };
     }
 
     public enum TouchMode {

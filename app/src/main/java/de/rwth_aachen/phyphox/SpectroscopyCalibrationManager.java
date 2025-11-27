@@ -25,6 +25,18 @@ public class SpectroscopyCalibrationManager {
         CALIBRATED
     }
 
+    public enum CalibrationMode { X_LINEAR, UNKNOWN }
+
+    public static CalibrationMode calibrationModeFromString(String str){
+        if(str == null){
+            return CalibrationMode.UNKNOWN;
+        }
+        return switch (str){
+            case "xLinear" -> CalibrationMode.X_LINEAR;
+            default -> CalibrationMode.UNKNOWN;
+        };
+    }
+
     public static class CalibrationPoint {
         public double pixelPosition;
         public double wavelength;
@@ -277,7 +289,7 @@ public class SpectroscopyCalibrationManager {
         void spectroscopyCalibrationDidDismiss(SpectroscopyCalibrationManager manager);
 
         void spectroscopyCalibrationShouldPresentDialog(SpectroscopyCalibrationManager manager,
-                                                         androidx.appcompat.app.AlertDialog dialog);
+                                                         AlertDialog dialog);
 
         void spectroscopyDidFailWithError(SpectroscopyCalibrationManager manager, String error);
     }

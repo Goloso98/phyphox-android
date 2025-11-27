@@ -1531,9 +1531,7 @@ public abstract class PhyphoxFile {
                     ge.setLogScale(logX, logY, logZ); //logarithmic scales for x/y axes
                     ge.setPrecision(xPrecision, yPrecision, zPrecision); //logarithmic scales for x/y axes
                     ge.setSuppressScientificNotation(suppressScientificNotation);
-                    if(calibrationMode != null){
-                        ge.setCalibrationMode(calibrationMode);
-                    }
+                    ge.setCalibrationMode(SpectroscopyCalibrationManager.calibrationModeFromString(calibrationMode));
                     ge.setNeedsCalibration(needsCalibration);
 
                     if (!globalColor) {

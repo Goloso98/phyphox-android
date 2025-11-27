@@ -61,8 +61,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     View rootView;
     FrameLayout graphFrame;
 
-    private boolean enableCalibrationMode = false;
-    private String calibrationMode = "xLinear";
+    private boolean enableCalibrationMode = true;
+    private SpectroscopyCalibrationManager.CalibrationMode calibrationMode = SpectroscopyCalibrationManager.CalibrationMode.UNKNOWN;
     private boolean needsCalibration = true;
     private DataBuffer slopeBuffer = null;
     private  DataBuffer interceptBuffer = null;
@@ -156,6 +156,14 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                         return true;
                     case R.id.graph_tools_calibrate:
                         removePopUpAndMarkerOverlayView();
+                        Log.d("Interactive", "calibrationMode"+calibrationMode);
+                        Log.d("Interactive", "calibrationMarkerViews"+calibrationMarkerViews.size());
+                        if(calibrationMarkerViews.size() > 0){
+                            Log.d("Interactive", "calibrationMarkerViews"+calibrationMarkerViews.get(0).getVisibility());
+                        }
+
+                        Log.d("Interactive", "enableCalibrationMode"+enableCalibrationMode);
+                        Log.d("Interactive", "marker"+marker.length);
                         graphView.setTouchMode(GraphView.TouchMode.calibrate);
                         if(!graphView.isSpectroscopyCalibrated) spectroscopyCalibrationManager.resetCalibration();
                         return true;
@@ -813,20 +821,21 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             this.graphView.setShowColorScaleForColorMapChart(showColorScale);
     }
 
-    public void setCalibrationMode(String calibrationMode, Context context, ExpViewFragment parent){
-        if(calibrationMode != null){
+    public void setCalibrationMode(SpectroscopyCalibrationManager.CalibrationMode calibrationMode, Context context, ExpViewFragment parent){
+        if(calibrationMode != SpectroscopyCalibrationManager.CalibrationMode.UNKNOWN){
             this.calibrationMode = calibrationMode;
             this.enableCalibrationMode = true;
+        } else {
+            return;
         }
-        if(enableCalibrationMode){
-            spectroscopyStatusLabel = createStatusLabel(context);
-            spectroscopyStatusLabel.setText(getResources().getString(R.string.calibration_invalid));
-            graphFrame.addView(spectroscopyStatusLabel);
 
-            if(spectroscopyCalibrationManager == null){
-                spectroscopyCalibrationManager = new SpectroscopyCalibrationManager(context, parent);
-                spectroscopyCalibrationManager.setDelegate(this);
-            }
+        spectroscopyStatusLabel = createStatusLabel(context);
+        spectroscopyStatusLabel.setText(getResources().getString(R.string.calibration_invalid));
+        graphFrame.addView(spectroscopyStatusLabel);
+
+        if(spectroscopyCalibrationManager == null){
+            spectroscopyCalibrationManager = new SpectroscopyCalibrationManager(context, parent);
+            spectroscopyCalibrationManager.setDelegate(this);
         }
 
         setCalibrationMenuItemVisibility();
