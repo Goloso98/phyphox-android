@@ -61,7 +61,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     View rootView;
     FrameLayout graphFrame;
 
-    private boolean calibrationMode = true;
+    private boolean enableCalibrationMode = false;
+    private String calibrationMode = "xLinear";
     private boolean needsCalibration = true;
     private DataBuffer slopeBuffer = null;
     private  DataBuffer interceptBuffer = null;
@@ -141,13 +142,13 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 switch (item.getItemId()) {
                     case R.id.graph_tools_pan:
-                        if(calibrationMode){
+                        if(enableCalibrationMode){
                             if(!graphView.isSpectroscopyCalibrated) spectroscopyCalibrationManager.resetCalibration();
                         }
                         graphView.setTouchMode(GraphView.TouchMode.zoom);
                         return true;
                     case R.id.graph_tools_pick:
-                        if(calibrationMode){
+                        if(enableCalibrationMode){
                             removePopUpAndMarkerOverlayView();
                             if(!graphView.isSpectroscopyCalibrated) spectroscopyCalibrationManager.resetCalibration();
                         }
@@ -249,7 +250,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         markerOverlayView.setGraphSetup(graphView.graphSetup);
         graphFrame.addView(markerOverlayView);
 
-        if(!calibrationMode) return;
+        if(!enableCalibrationMode) return;
         // Since the height of the graph is updated during plot rendering, the update of
         // the calibration confirmation marker height need to be readjusted after the rendering is complete.
         plotRenderer.getGraphSetup().setOnRenderedPlotResizedListener(graphHeight -> {
@@ -299,7 +300,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         popup.getMenu().findItem(R.id.graph_tools_log_y).setVisible(allowLogY);
         popup.getMenu().findItem(R.id.graph_tools_log_x).setChecked(graphView.logX);
         popup.getMenu().findItem(R.id.graph_tools_log_y).setChecked(graphView.logY);
-        popup.getMenu().findItem(R.id.graph_reset_calibration).setVisible(calibrationMode);
+        popup.getMenu().findItem(R.id.graph_reset_calibration).setVisible(enableCalibrationMode);
         boolean hasMap = false;
         for (GraphView.Style style : graphView.style)
             if (style == GraphView.Style.mapXY)
@@ -812,10 +813,12 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             this.graphView.setShowColorScaleForColorMapChart(showColorScale);
     }
 
-    public void setCalibrationMode(boolean calibrationMode, Context context, ExpViewFragment parent){
-        this.calibrationMode = calibrationMode;
-
-        if(calibrationMode){
+    public void setCalibrationMode(String calibrationMode, Context context, ExpViewFragment parent){
+        if(calibrationMode != null){
+            this.calibrationMode = calibrationMode;
+            this.enableCalibrationMode = true;
+        }
+        if(enableCalibrationMode){
             spectroscopyStatusLabel = createStatusLabel(context);
             spectroscopyStatusLabel.setText(getResources().getString(R.string.calibration_invalid));
             graphFrame.addView(spectroscopyStatusLabel);
@@ -851,7 +854,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     private void setCalibrationMenuItemVisibility(){
         MenuItem calibrationItem = toolbar.getMenu().findItem(R.id.graph_tools_calibrate);
         if(calibrationItem != null){
-            calibrationItem.setVisible(calibrationMode);
+            calibrationItem.setVisible(enableCalibrationMode);
         }
     }
 
