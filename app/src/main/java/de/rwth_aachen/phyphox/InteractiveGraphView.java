@@ -63,7 +63,7 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
     private boolean enableCalibrationMode = true;
     private SpectroscopyCalibrationManager.CalibrationMode calibrationMode = SpectroscopyCalibrationManager.CalibrationMode.UNKNOWN;
-    private boolean needsCalibration = true;
+
     private DataBuffer slopeBuffer = null;
     private  DataBuffer interceptBuffer = null;
 
@@ -841,25 +841,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         setCalibrationMenuItemVisibility();
     }
 
-
-    public void setNeedsCalibration(boolean needsCalibration, Context context, ExpViewFragment parent){
-        this.needsCalibration = needsCalibration;
-
-        if(needsCalibration){
-            TextView spectroscopyStatusLabel_ = createStatusLabel(context);
-            spectroscopyStatusLabel_.setVisibility(VISIBLE);
-            spectroscopyStatusLabel_.setText(getResources().getString(R.string.not_calibrated));
-            graphFrame.addView(spectroscopyStatusLabel_);
-
-            if(spectroscopyCalibrationManager == null){
-                spectroscopyCalibrationManager = new SpectroscopyCalibrationManager(context, parent);
-                spectroscopyCalibrationManager.setDelegate(this);
-            }
-
-            parent.setSpectroscopyGraphCalibrationStatusTextLabel(spectroscopyStatusLabel_);
-        }
-    }
-
     private void setCalibrationMenuItemVisibility(){
         MenuItem calibrationItem = toolbar.getMenu().findItem(R.id.graph_tools_calibrate);
         if(calibrationItem != null){
@@ -887,7 +868,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     public void spectroscopyCalibrationDidStart(SpectroscopyCalibrationManager manager) {
         spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_tap_first_point));
         spectroscopyStatusLabel.setVisibility(VISIBLE);
-        manager.topLevelParent.spectroscopyGraphCalibrationStatusTextLabel.setVisibility(VISIBLE);
         clearCalibrationMarkers();
         markerOverlayView.update(null, null);
         graphView.resetPicks();
@@ -924,9 +904,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         markerOverlayView.update(null, null);
 
         updateCalibrationParametersBuffer(slope,intercept);
-
-        //Reflect the calibration setup graph status in wavelength graph.
-        manager.topLevelParent.spectroscopyGraphCalibrationStatusTextLabel.setVisibility(GONE);
 
         this.graphView.isSpectroscopyCalibrated = true;
         graphView.setTouchMode(GraphView.TouchMode.off);

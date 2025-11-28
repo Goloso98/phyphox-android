@@ -1689,7 +1689,6 @@ public class ExpView implements Serializable{
             interactiveGV.setLabel(this.label);
             interactiveGV.setShowColorScale(showColorScale);
             interactiveGV.setCalibrationMode(calibrationMode, c,  self.parent);
-            interactiveGV.setNeedsCalibration(needsCalibration, c,  self.parent);
             if(calibrationMode == SpectroscopyCalibrationManager.CalibrationMode.X_LINEAR){
                 interactiveGV.setSlopeBuffer(experiment.getBuffer(outputs.get(0)));
                 interactiveGV.setInterceptBuffer(experiment.getBuffer(outputs.get(1)));

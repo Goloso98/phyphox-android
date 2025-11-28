@@ -249,7 +249,6 @@ public class SpectroscopyCalibrationManager {
         calibrationPoints.clear();
         calibrationState = CalibrationState.START;
         calibrationParameters = null;
-        topLevelParent.spectroscopyGraphCalibrationStatusTextLabel.setVisibility(VISIBLE);
         if (delegate != null) {
             delegate.spectroscopyCalibrationDidReset(this);
         }

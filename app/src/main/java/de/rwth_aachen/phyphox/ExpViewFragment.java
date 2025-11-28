@@ -22,7 +22,6 @@ public class ExpViewFragment extends Fragment {
     boolean hasExclusive;
 
     //This falls under graphElement-> SpectroscopyCalibrationManager
-    TextView spectroscopyGraphCalibrationStatusTextLabel;
 
     public ExpViewFragment() {
         // Required empty public constructor
@@ -38,10 +37,6 @@ public class ExpViewFragment extends Fragment {
         }
     }
 
-    // Takes the reference of textLabel which shows if the spectroscopy graph is calibrated or not.
-    public void setSpectroscopyGraphCalibrationStatusTextLabel(TextView spectroscopyGraphCalibrationStatusTextLabel){
-        this.spectroscopyGraphCalibrationStatusTextLabel = spectroscopyGraphCalibrationStatusTextLabel;
-    }
 
     public void disableScrolling(){
         root.setScrollEnabled(false);
