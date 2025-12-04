@@ -23,6 +23,7 @@ import android.text.SpannableString;
 import android.text.TextPaint;
 import android.text.method.DigitsKeyListener;
 import android.text.style.MetricAffectingSpan;
+import android.transition.Visibility;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.ContextThemeWrapper;
@@ -125,6 +126,7 @@ public class ExpView implements Serializable{
 
         public State state = State.normal;
 
+        DataBuffer visibilityBuffer = null;
         //Constructor takes the label, any buffer name that should be used an a reference to the resources
         protected expViewElement(String label, String visibility,  String valueOutput, Vector<String> inputs, Resources res) {
             this.label = label;
@@ -189,6 +191,7 @@ public class ExpView implements Serializable{
                         experiment.getBuffer(buffer).register(this);
                 }
             }
+            this.visibilityBuffer = experiment.getBuffer(visibility);
             needsUpdate = true;
         }
 
@@ -272,17 +275,14 @@ public class ExpView implements Serializable{
             return false;
         }
 
-        //This is called when the analysis process is finished and the element is allowed to write to the buffers
+        //This is called when the analysis process is finished and the element is allowed to read to the buffers
         protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
-            DataBuffer visibilityBuffer = experiment.getBuffer(visibility);
-
-            if(visibilityBuffer != null){
-                if(visibilityBuffer.value <= 0 || visibilityBuffer.size == 0){
-                    rootView.setVisibility(GONE);
-                } else {
-                    rootView.setVisibility(VISIBLE);
-                }
+            // When the view is in exclusive mode, the state is hidden to others then the caller.
+            // In this case, we don't need to read the buffer to control its visibility as they are already in the hidden state.
+            if(state == State.hidden){
+                return;
             }
+            updateViewElementVisibility();
 
         }
 
@@ -310,6 +310,9 @@ public class ExpView implements Serializable{
             state = State.normal;
             if (rootView != null) {
                 rootView.setVisibility(VISIBLE);
+                // All views were hidden in exclusive mode except the caller, so we need to update
+                // the view as per the buffer value after it is restored..
+                updateViewElementVisibility();
             }
         }
 
@@ -322,6 +325,16 @@ public class ExpView implements Serializable{
 
         protected void onViewSelected(boolean parentViewIsVisible) {
 
+        }
+
+        private void updateViewElementVisibility(){
+            if(visibilityBuffer != null){
+                if(visibilityBuffer.value <= 0 || visibilityBuffer.size == 0){
+                    rootView.setVisibility(GONE);
+                } else {
+                    rootView.setVisibility(VISIBLE);
+                }
+            }
         }
 
     }
@@ -540,11 +553,10 @@ public class ExpView implements Serializable{
         @Override
         //We just have to send calculated value and the unit to the textView
         protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
-            super.onMayReadFromBuffers(experiment);
             if (!needsUpdate)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             double x = experiment.getBuffer(inputs.get(0)).value;
             if (tv != null) {
                 String vStr = "";
@@ -1323,11 +1335,10 @@ public class ExpView implements Serializable{
 
         @Override
         protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
-            super.onMayReadFromBuffers(experiment);
             if (!needsUpdate)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             double x = buffer.value;
 
             String buttonLabel = this.label;
@@ -1473,8 +1484,6 @@ public class ExpView implements Serializable{
         GraphView.ZoomState zoomState = null;
 
         final String warningText;
-
-        DataBuffer visibilityBuffer = null;
 
         //Quite usual constructor...
         graphElement(String label, String visibility, Vector<String> valueOutputs, Vector<String> inputs, Resources res) {
@@ -1684,8 +1693,6 @@ public class ExpView implements Serializable{
 
             this.parent = parent;
 
-            this.visibilityBuffer = experiment.getBuffer(visibility);
-
             Context ctx = c;
             Activity act = null;
             while (ctx instanceof ContextWrapper) {
@@ -1812,11 +1819,10 @@ public class ExpView implements Serializable{
 
         @Override
         protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
-            super.onMayReadFromBuffers(experiment);
             if (!needsUpdate)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             for (int i = 0; i < inputs.size(); i+=2) {
                 if (inputs.size() > i+1) {
                     DataBuffer x = experiment.getBuffer(inputs.get(i+1));
@@ -2231,17 +2237,6 @@ public class ExpView implements Serializable{
 
                 interactiveGV.setInteractive(false);
 
-                if(visibilityBuffer != null){
-                    Log.d("ExpView", "visibilityBuffer.name" +visibilityBuffer.name);
-                    Log.d("ExpView", "visibilityBuffer.value" +visibilityBuffer.value);
-                    if(visibilityBuffer.value <= 0){
-                        interactiveGV.setVisibility(GONE);
-                    } else {
-                        interactiveGV.setVisibility(VISIBLE);
-                    }
-                } else {
-                    interactiveGV.setVisibility(VISIBLE);
-                }
             }
         }
 
@@ -2911,11 +2906,6 @@ public class ExpView implements Serializable{
             if (cameraPreviewFragment != null)
                 cameraPreviewFragment.onPageVisibleToUser(parentViewIsVisible);
         }
-
-        @Override
-        protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
-            super.onMayReadFromBuffers(experiment);
-        }
     }
 
     public class toggleElement extends  expViewElement implements  Serializable {
@@ -3190,11 +3180,10 @@ public class ExpView implements Serializable{
 
         @Override
         protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
-            super.onMayReadFromBuffers(experiment);
             if (!needsUpdate || triggered || autoCompleteTextView == null)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             double x = experiment.getBuffer(inputs.get(0)).value;
 
             int index= -1;
@@ -3527,11 +3516,10 @@ public class ExpView implements Serializable{
 
         @Override
         protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
-            super.onMayReadFromBuffers(experiment);
             if (!needsUpdate || triggered)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             if (inputs.size() == 0)
                 return;
             double value = experiment.getBuffer(inputs.get(0)).value;
