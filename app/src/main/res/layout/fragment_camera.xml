@@ -86,7 +86,7 @@
 
     </FrameLayout>
 
-    <LinearLayout
+    <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/lnrSpectroscopyAnalysisControl"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -112,9 +112,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:layerType="software"
             />
 
-    </LinearLayout>
+    </androidx.appcompat.widget.LinearLayoutCompat>
 
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/cameraSetting"

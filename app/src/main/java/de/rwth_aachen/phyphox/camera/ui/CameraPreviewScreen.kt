@@ -95,7 +95,7 @@ class CameraPreviewScreen(
     private val buttonMinimize: ImageView = root.findViewById(R.id.imageMinimize)
 
     private val spinnerSpectrumOrientation: Spinner = root.findViewById(R.id.btnSelectSpectroscopyOrientation)
-    private val lnrSpectrumOrientation: LinearLayout = root.findViewById(R.id.lnrSpectroscopyAnalysisControl)
+    private val lnrSpectrumOrientation: LinearLayoutCompat = root.findViewById(R.id.lnrSpectroscopyAnalysisControl)
 
     private val zoomSlider: Slider = root.findViewById(R.id.zoomSlider)
 
