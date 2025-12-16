@@ -317,6 +317,8 @@ public class ExpView implements Serializable{
         }
 
         protected void maximize() {
+            if(state == State.hidden) return;
+
             state = State.maximized;
             if (rootView != null) {
                 rootView.setVisibility(VISIBLE);
@@ -330,7 +332,13 @@ public class ExpView implements Serializable{
         private void updateViewElementVisibility(){
             if(visibilityBuffer != null){
                 if(visibilityBuffer.value <= 0 || visibilityBuffer.size == 0){
-                    rootView.setVisibility(GONE);
+                    if (state == State.maximized) {
+                        //This prevents from leaving the user with an entirely empty UI, when an element might be maximized while it becomes hidden.
+                        restore();
+                    } else {
+                        rootView.setVisibility(GONE);
+                    }
+
                 } else {
                     rootView.setVisibility(VISIBLE);
                 }
