@@ -6,7 +6,7 @@ targetSdk = "35"
 
 # Plugin Versions
 androidGradlePlugin = "8.13.2"
-kotlin = "2.1.0" # Example version
+kotlin = "2.3.0"
 
 # Dependency Versions
 multidex = "2.0.1"
