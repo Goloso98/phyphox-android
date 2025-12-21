@@ -5,7 +5,7 @@ minSdk = "21"
 targetSdk = "35"
 
 # Plugin Versions
-androidGradlePlugin = "8.x.x" # Replace with your current AGP version
+androidGradlePlugin = "8.13.2"
 kotlin = "2.1.0" # Example version
 
 # Dependency Versions
