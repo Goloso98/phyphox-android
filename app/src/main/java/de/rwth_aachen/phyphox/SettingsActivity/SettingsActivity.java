@@ -12,11 +12,12 @@ import android.os.Bundle;
 import android.view.ViewGroup;
 
 
+import dagger.hilt.android.AndroidEntryPoint;
 import de.rwth_aachen.phyphox.Helper.Helper;
 import de.rwth_aachen.phyphox.Helper.WindowInsetHelper;
 import de.rwth_aachen.phyphox.R;
 
-
+@AndroidEntryPoint
 public class SettingsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
