@@ -1,8 +1,8 @@
 [versions]
 # SDK Versions
-compileSdk = "36"
+compileSdk = "35"
 minSdk = "21"
-targetSdk = "36"
+targetSdk = "35"
 
 # Plugin Versions
 androidGradlePlugin = "8.13.2"
@@ -10,12 +10,12 @@ kotlin = "2.3.0"
 
 # Dependency Versions
 multidex = "2.0.1"
-material = "1.12.0"
+material = "1.13.0"
 annotation = "1.9.1"
 appcompat = "1.7.1"
 preference = "1.2.1"
-core = "1.16.0"
-fragment = "1.8.8"
+core = "1.17.0"
+fragment = "1.8.9"
 viewpager = "1.1.0"
 commonsIo = "1.3.2"
 zxing = "3.5.0"
@@ -26,12 +26,12 @@ recyclerview = "1.4.0"
 recyclerviewSelection = "1.2.0"
 junit = "4.13.2"
 screengrab = "2.1.1"
-testRules = "1.6.1"
+testRules = "1.7.0"
 testExtJunit = "1.2.1"
-espresso = "3.6.1"
-truth = "1.0.1"
+espresso = "3.7.0"
+truth = "1.4.5"
 pahoMqtt = "4.4"
-camerax = "1.4.2"
+camerax = "1.5.2"
 
 [libraries]
 androidx-multidex = { group = "androidx.multidex", name = "multidex", version.ref = "multidex" }
