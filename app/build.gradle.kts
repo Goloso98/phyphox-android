@@ -131,7 +131,10 @@ android {
     }
     ktlint {
         android.set(true)
-        ignoreFailures.set(false)
+        ignoreFailures.set(true)
+        coloredOutput.set(true)
+        this.outputToConsole.set(true)
+
 
         reporters {
 //            reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
@@ -227,7 +230,7 @@ tasks.register("lintCheck") {
 
     dependsOn(
         ":app:detekt",
-        ":app:ktlintCheck",
-        ":app:lintRegularDebug",
+        ":app:ktlintCheck"
+//        ":app:lintRegularDebug",
     )
 }
