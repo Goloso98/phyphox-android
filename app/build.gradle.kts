@@ -87,11 +87,11 @@ android {
 
     compileOptions {
         encoding = "UTF-8"
-        sourceCompatibility = JavaVersion.VERSION_22
-        targetCompatibility = JavaVersion.VERSION_22
+        sourceCompatibility = JavaVersion.VERSION_20
+        targetCompatibility = JavaVersion.VERSION_20
     }
     kotlin {
-        jvmToolchain(22)
+        jvmToolchain(20)
     }
 
     bundle {
