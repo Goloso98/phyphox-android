@@ -1,0 +1,70 @@
+# Detekt Default Rules Configuration
+# You can find the full default config at: https://github.com/detekt/detekt/blob/main/detekt-core/src/main/resources/default-detekt-config.yml
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+  weights:
+    # complexity: 2
+    # LongParameterList: 1
+
+# Jetpack Compose Custom Rules
+# If you are using 'io.nlopez.compose.rules', the ruleset name is 'Compose'
+Compose:
+  active: true
+  ComposableAnnotationNaming:
+    active: true
+  ComposableNaming:
+    active: true
+  ComposableParamOrder:
+    active: true
+  ContentEmitterReturningValues:
+    active: true
+  ModifierMissing:
+    active: true
+  ModifierReused:
+    active: true
+  ModifierWithoutDefault:
+    active: true
+  MultipleEmitters:
+    active: true
+  MutableParams:
+    active: true
+  PreviewNaming:
+    active: true
+  PreviewPublic:
+    active: true
+  RememberMissing:
+    active: true
+  UnstableCollections:
+    active: true
+  ViewModelForwarding:
+    active: true
+  ViewModelInjection:
+    active: true
+    
+
+# Adjusting standard Detekt rules for Compose compatibility
+naming:
+  FunctionNaming:
+    # Allow Composable functions to start with Uppercase
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    # Compose often uses PascalCase for top-level constants/previews
+    constantPattern: '[A-Z][A-Za-z0-9]*|[A-Z][_A-Z0-9]*'
+
+complexity:
+  LongParameterList:
+    # Composables often have many parameters with defaults
+    ignoreAnnotated: ['Composable']
+    functionThreshold: 12
+  #MagicNumber:
+    # Ignore magic numbers in colors or preview sizes
+    #ignoreAnnotated: ['Composable', 'Preview']
+    #ignorePropertyDeclaration: true
+
+style:
+  UnusedPrivateMember:
+    # Prevents flagging @Preview functions as unused
+    ignoreAnnotated: ['Preview']
+

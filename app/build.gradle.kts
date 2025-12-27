@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
 }
 
 android {
@@ -40,12 +42,12 @@ android {
             "tr",
             "vi",
             "zh-rCN",
-            "zh-rTW"
+            "zh-rTW",
         )
         buildConfigField(
             "String[]",
             "LOCALE_ARRAY",
-            "new String[]{\"" + locales.joinToString("\",\"") + "\"}"
+            "new String[]{\"" + locales.joinToString("\",\"") + "\"}",
         )
         resourceConfigurations.addAll(locales)
 
@@ -85,8 +87,11 @@ android {
 
     compileOptions {
         encoding = "UTF-8"
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_22
+        targetCompatibility = JavaVersion.VERSION_22
+    }
+    kotlin {
+        jvmToolchain(22)
     }
 
     bundle {
@@ -101,6 +106,73 @@ android {
     }
 
     ndkVersion = "28.0.13004108"
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+        warningsAsErrors = false
+        checkDependencies = true
+//        baseline = file("lint-baseline.xml") no base line till satisfactory state is reached
+
+        // Reports
+//        textReport = true
+        htmlReport = true
+
+        htmlOutput = file("${layout.buildDirectory}/reports/code-quality/lint.html")
+        textOutput = file("${layout.buildDirectory}/reports/code-quality/lint.txt")
+
+        // Compose-specific checks
+        enable += setOf(
+            "ComposableNaming",
+            "ComposableFunctionName",
+            "ModifierOrder",
+            "UnrememberedMutableState",
+        )
+    }
+    ktlint {
+        android.set(true)
+        ignoreFailures.set(false)
+
+        reporters {
+//            reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
+            reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.HTML)
+        }
+
+        outputToConsole.set(true)
+        outputColorName.set("RED")
+    }
+}
+detekt {
+    toolVersion = libs.versions.detekt.get()
+    buildUponDefaultConfig = true
+    allRules = false
+//    ignoredFlavors = listOf("screenshot")
+//    ignoredBuildTypes = listOf("release")
+
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+    baseline = file("$rootDir/config/detekt/detekt-baseline.xml")
+    basePath = projectDir.path
+    ignoreFailures = true
+}
+
+// Add this to handle the deprecated reports block issue
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    reports {
+        // Enable HTML report
+        html.required.set(true)
+        html.outputLocation.set(file("${layout.buildDirectory.get()}/reports/detekt/detekt.html"))
+
+//        // Enable XML report (often used for CI)
+        xml.required.set(false)
+//        xml.outputLocation.set(file("${layout.buildDirectory.get()}/reports/detekt/detekt.xml"))
+//
+//        // Enable SARIF report (best for GitHub Actions)
+        sarif.required.set(false)
+//        sarif.outputLocation.set(file("${layout.buildDirectory.get()}/reports/detekt/detekt.sarif"))
+
+        // Disable TXT report if not needed
+        txt.required.set(false)
+    }
 }
 
 dependencies {
@@ -134,6 +206,7 @@ dependencies {
     implementation(libs.bundles.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    detektPlugins(libs.detekt.compose)
 
     add("androidTestScreenshotImplementation", libs.junit)
     add("androidTestScreenshotImplementation", libs.fastlane.screengrab)
@@ -146,4 +219,15 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.google.truth)
+}
+
+tasks.register("lintCheck") {
+    group = "verification"
+    description = "Run ktlint, detekt, and Android Lint sequentially"
+
+    dependsOn(
+        ":app:detekt",
+        ":app:ktlintCheck",
+        ":app:lintRegularDebug",
+    )
 }
