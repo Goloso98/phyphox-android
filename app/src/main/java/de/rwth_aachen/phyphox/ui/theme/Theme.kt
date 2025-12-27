@@ -55,11 +55,6 @@ data class PhyphoxColors(
 
 val LocalPhyphoxColors = staticCompositionLocalOf { PhyphoxColors() }
 
-val MaterialTheme.colors: ColorScheme
-    @Composable
-    @ReadOnlyComposable
-    get() = colorScheme
-
 val MaterialTheme.customColors: PhyphoxColors
     @Composable
     @ReadOnlyComposable
