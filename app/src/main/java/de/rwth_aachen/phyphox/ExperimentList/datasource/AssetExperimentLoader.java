@@ -65,14 +65,7 @@ public class AssetExperimentLoader {
         }
     }
 
-    /**
-     * The third addExperiment function:
-     *  ExperimentItemAdapter.addExperiment(...) is called by category.addExperiment(...), which in
-     *  turn will be called here.
-     *  This addExperiment(...) is called for each experiment found. It checks if the experiment's
-     *   category already exists and adds it to this category or creates a category for the experiment
-     */
-    public void addExperiment(ExperimentShortInfo shortInfo) {
+    public void addBluetoothInfos(ExperimentShortInfo shortInfo){
         for (String bluetoothDeviceName : shortInfo.bluetoothDeviceNames) {
             if (!repository.bluetoothDeviceNameList.containsKey(bluetoothDeviceName))
                 repository.bluetoothDeviceNameList.put(bluetoothDeviceName, new Vector<>());
@@ -83,7 +76,16 @@ public class AssetExperimentLoader {
                 repository.bluetoothDeviceUUIDList.put(bluetoothDeviceUUID, new Vector<String>());
             repository.bluetoothDeviceUUIDList.get(bluetoothDeviceUUID).add(shortInfo.xmlFile);
         }
+    }
 
+    /**
+     * The third addExperiment function:
+     *  ExperimentItemAdapter.addExperiment(...) is called by category.addExperiment(...), which in
+     *  turn will be called here.
+     *  This addExperiment(...) is called for each experiment found. It checks if the experiment's
+     *   category already exists and adds it to this category or creates a category for the experiment
+     */
+    public void addExperiment(ExperimentShortInfo shortInfo) {
         //Check all categories for the category of the new experiment
         for (ExperimentsInCategory icat : repository.categories) {
             if (icat.hasName(shortInfo.categoryName)) {
@@ -460,6 +462,7 @@ public class AssetExperimentLoader {
                 ExperimentLoadInfoData data = new ExperimentLoadInfoData(input, file.getName(), null, false);
                 ExperimentShortInfo shortInfo = loadExperimentShortInfo(data, environment);
                 if (shortInfo != null) {
+                    addBluetoothInfos(shortInfo);
                     addExperiment(shortInfo);
                 }
 
@@ -486,6 +489,7 @@ public class AssetExperimentLoader {
                 ExperimentLoadInfoData data = new ExperimentLoadInfoData(input, experimentXML, null, true);
                 ExperimentShortInfo shortInfo = loadExperimentShortInfo(data, environment);
                 if (shortInfo != null) {
+                    addBluetoothInfos(shortInfo);
                     addExperiment(shortInfo);
                 }
                 //loadExperimentInfo(input, experimentXML, null,true, categories, null, null);
@@ -508,7 +512,7 @@ public class AssetExperimentLoader {
                 ExperimentLoadInfoData data = new ExperimentLoadInfoData(input, "bluetooth/" + experimentXML, null, true);
                 ExperimentShortInfo shortInfo = loadExperimentShortInfo(data, environment);
                 if (shortInfo != null) {
-                    addExperiment(shortInfo);
+                    addBluetoothInfos(shortInfo);
                 }
             }
         } catch (IOException e) {

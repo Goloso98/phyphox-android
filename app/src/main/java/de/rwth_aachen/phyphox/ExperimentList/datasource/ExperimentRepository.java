@@ -42,6 +42,7 @@ public class ExperimentRepository{
 
     public void addExperiment(ExperimentShortInfo shortInfo, Activity parent) {
         AssetExperimentLoader assetExperimentLoader = new AssetExperimentLoader(parent, this);
+        assetExperimentLoader.addBluetoothInfos(shortInfo);
         assetExperimentLoader.addExperiment(shortInfo);
     }
 
@@ -54,6 +55,7 @@ public class ExperimentRepository{
 
         assetExperimentLoader.loadAndAddExperimentsFromLocalFiles();
         assetExperimentLoader.loadAndAddExperimentsFromAssets();
+        assetExperimentLoader.loadAndAddExperimentsFromHiddenBluetoothAssets();
 
         addExperimentCategoriesToLinearLayout(parent.findViewById(R.id.experimentList), parent.getResources());
     }

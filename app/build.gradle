@@ -47,7 +47,6 @@ android {
     productFlavors {
         screenshot {
             dimension "permissions"
-            minSdkVersion 18
         }
         regular {
             dimension "permissions"
