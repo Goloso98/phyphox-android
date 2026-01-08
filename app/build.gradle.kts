@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt.android)
 }
 
 android {
@@ -120,6 +122,10 @@ dependencies {
     implementation(libs.jlhttp)
     implementation(libs.caverock.androidsvg)//https://bigbadaboom.github.io/androidsvg/release_notes.html
     implementation(libs.paho.mqtt.android)
+
+    //hilt
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
 
     add("androidTestScreenshotImplementation", libs.junit)
     add("androidTestScreenshotImplementation", libs.fastlane.screengrab)
