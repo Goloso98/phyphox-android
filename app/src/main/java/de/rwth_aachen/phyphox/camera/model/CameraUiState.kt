@@ -1,5 +1,6 @@
 package de.rwth_aachen.phyphox.camera.model
 
+import android.R
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.camera.core.CameraSelector.LENS_FACING_BACK
@@ -9,18 +10,19 @@ import androidx.camera.core.CameraSelector.LENS_FACING_BACK
  */
 @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 data class CameraUiState  constructor(
-        val cameraPreviewState: CameraPreviewState = CameraPreviewState.INITIALIZING,
-        val availableSettings: List<CameraSettingMode> = emptyList(),
-        val availableCameraLens: List<Int> = listOf(LENS_FACING_BACK),
-        val editableCameraSettings: MutableMap<String, String>? = mutableMapOf(),
-        val cameraLens: Int = LENS_FACING_BACK,
+    val cameraPreviewState: CameraPreviewState = CameraPreviewState.INITIALIZING,
+    val availableSettings: List<CameraSettingMode> = emptyList(),
+    val availableCameraLens: List<Int> = listOf(LENS_FACING_BACK),
+    val editableCameraSettings: MutableMap<String, String>? = mutableMapOf(),
+    val cameraLens: Int = LENS_FACING_BACK,
 
-        val overlayUpdateState: OverlayUpdateState = OverlayUpdateState.NO_UPDATE,
+    val overlayUpdateState: OverlayUpdateState = OverlayUpdateState.NO_UPDATE,
 
-        val settingMode: CameraSettingMode = CameraSettingMode.NONE,
+    val settingMode: CameraSettingMode = CameraSettingMode.NONE,
 
-        val cameraSettingLevel: CameraSettingLevel = CameraSettingLevel.BASIC,
-        val showCameraControls: ShowCameraControls = ShowCameraControls.FullViewOnly,
+    val cameraSettingLevel: CameraSettingLevel = CameraSettingLevel.BASIC,
+    val showCameraControls: ShowCameraControls = ShowCameraControls.FullViewOnly,
+    val showSpectroscopyAnalysisControl: ShowSpectroscopyAnalysisControls = ShowSpectroscopyAnalysisControls.Hide,
 )
 
 /**
@@ -60,4 +62,8 @@ enum class CameraSettingLevel {
 
 enum class ShowCameraControls {
     Always, Never, FullViewOnly
+}
+
+enum class ShowSpectroscopyAnalysisControls {
+    Show, Hide
 }

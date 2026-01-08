@@ -1,5 +1,6 @@
 package de.rwth_aachen.phyphox;
 
+import static android.view.View.GONE;
 import static android.view.View.INVISIBLE;
 import static android.view.View.VISIBLE;
 
@@ -22,6 +23,7 @@ import android.text.SpannableString;
 import android.text.TextPaint;
 import android.text.method.DigitsKeyListener;
 import android.text.style.MetricAffectingSpan;
+import android.transition.Visibility;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.ContextThemeWrapper;
@@ -111,6 +113,7 @@ public class ExpView implements Serializable{
     //Abstract expViewElement class defining the interface for any element of an experiment view
     public abstract class expViewElement implements Serializable, BufferNotification {
         protected String label; //Each element has a label. Usually naming the data shown
+        protected String visibility;
         protected float labelSize; //Size of the label
         protected String valueOutput; //User input will be directed to this output, so the experiment can write it to a dataBuffer
         protected Vector<String> inputs;
@@ -123,9 +126,11 @@ public class ExpView implements Serializable{
 
         public State state = State.normal;
 
+        DataBuffer visibilityBuffer = null;
         //Constructor takes the label, any buffer name that should be used an a reference to the resources
-        protected expViewElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
+        protected expViewElement(String label, String visibility,  String valueOutput, Vector<String> inputs, Resources res) {
             this.label = label;
+            this.visibility = visibility;
             this.labelSize = res.getDimension(R.dimen.label_font);
             this.valueOutput = valueOutput;
             this.inputs = inputs;
@@ -139,8 +144,9 @@ public class ExpView implements Serializable{
         }
 
         // Same as the above Constructor, only change is that it accepts output vector
-        protected expViewElement(String label, Vector<String> valueOutputs, Vector<String> inputs, Resources res) {
+        protected expViewElement(String label, String visibility ,Vector<String> valueOutputs, Vector<String> inputs, Resources res) {
             this.label = label;
+            this.visibility = visibility;
             this.labelSize = res.getDimension(R.dimen.label_font);
             this.outputs = valueOutputs;
             this.inputs = inputs;
@@ -185,6 +191,7 @@ public class ExpView implements Serializable{
                         experiment.getBuffer(buffer).register(this);
                 }
             }
+            this.visibilityBuffer = experiment.getBuffer(visibility);
             needsUpdate = true;
         }
 
@@ -268,8 +275,15 @@ public class ExpView implements Serializable{
             return false;
         }
 
-        //This is called when the analysis process is finished and the element is allowed to write to the buffers
+        //This is called when the analysis process is finished and the element is allowed to read to the buffers
         protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
+            // When the view is in exclusive mode, the state is hidden to others then the caller.
+            // In this case, we don't need to read the buffer to control its visibility as they are already in the hidden state.
+            if(state == State.hidden){
+                return;
+            }
+            updateViewElementVisibility();
+
         }
 
         //This is called when the time reference for the experiment has been updated (i.e. start or stop)
@@ -288,7 +302,7 @@ public class ExpView implements Serializable{
         protected void hide() {
             state = State.hidden;
             if (rootView != null) {
-                rootView.setVisibility(View.GONE);
+                rootView.setVisibility(GONE);
             }
         }
 
@@ -296,10 +310,15 @@ public class ExpView implements Serializable{
             state = State.normal;
             if (rootView != null) {
                 rootView.setVisibility(VISIBLE);
+                // All views were hidden in exclusive mode except the caller, so we need to update
+                // the view as per the buffer value after it is restored..
+                updateViewElementVisibility();
             }
         }
 
         protected void maximize() {
+            if(state == State.hidden) return;
+
             state = State.maximized;
             if (rootView != null) {
                 rootView.setVisibility(VISIBLE);
@@ -308,6 +327,22 @@ public class ExpView implements Serializable{
 
         protected void onViewSelected(boolean parentViewIsVisible) {
 
+        }
+
+        private void updateViewElementVisibility(){
+            if(visibilityBuffer != null){
+                if(visibilityBuffer.value <= 0 || visibilityBuffer.size == 0){
+                    if (state == State.maximized) {
+                        //This prevents from leaving the user with an entirely empty UI, when an element might be maximized while it becomes hidden.
+                        restore();
+                    } else {
+                        rootView.setVisibility(GONE);
+                    }
+
+                } else {
+                    rootView.setVisibility(VISIBLE);
+                }
+            }
         }
 
     }
@@ -377,8 +412,8 @@ public class ExpView implements Serializable{
 
         //Constructor takes the same arguments as the expViewElement constructor
         //It sets a precision of 2 with fixed point notation as default and creates the formatter
-        valueElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        valueElement(String label, String visibility, String valueOutput, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutput, inputs, res);
             this.scientificNotation = false;
             this.precision = 2;
             updateFormatter();
@@ -529,7 +564,7 @@ public class ExpView implements Serializable{
             if (!needsUpdate)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             double x = experiment.getBuffer(inputs.get(0)).value;
             if (tv != null) {
                 String vStr = "";
@@ -723,8 +758,8 @@ public class ExpView implements Serializable{
         private float size = 1.0f;
 
         //Constructor takes the same arguments as the expViewElement constructor
-        infoElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        infoElement(String label, String visibility, String valueOutput, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutput, inputs, res);
             this.color = new RGB(res.getColor(R.color.phyphox_white_100));
         }
 
@@ -796,6 +831,10 @@ public class ExpView implements Serializable{
                     "</div>";
         }
 
+        @Override
+        protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
+            super.onMayReadFromBuffers(experiment);
+        }
     }
 
     //separatorElement implements a simple spacing, optionally showing line
@@ -805,8 +844,8 @@ public class ExpView implements Serializable{
         private float height = 0.1f;
 
         //Label is not used
-        separatorElement(String valueOutput, Vector<String> inputs, Resources res) {
-            super("", valueOutput, inputs, res);
+        separatorElement(String valueOutput, String visibility, Vector<String> inputs, Resources res) {
+            super("", visibility, valueOutput, inputs, res);
         }
 
         public void setColor(RGB c) {
@@ -878,8 +917,8 @@ public class ExpView implements Serializable{
 
 
         //No special constructor. Just some defaults.
-        editElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        editElement(String label, String visibility, String valueOutput, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutput, inputs, res);
             this.label = label;
             this.unit = "";
             this.factor = 1.;
@@ -1131,6 +1170,7 @@ public class ExpView implements Serializable{
         @Override
         //Set the value if the element is not focused
         protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
+            super.onMayReadFromBuffers(experiment);
             //Enter value from buffer if it has not been changed by the user
             //This ensures, that the old value is restored if the view has to be created after the views have been switched.
             double v = experiment.getBuffer(inputs.get(0)).value;
@@ -1185,8 +1225,8 @@ public class ExpView implements Serializable{
         }
 
         //No special constructor.
-        buttonElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        buttonElement(String label, String visibility, String valueOutput, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutput, inputs, res);
         }
 
         protected void setIO(Vector<DataInput> inputs, Vector<DataOutput> outputs) {
@@ -1306,7 +1346,7 @@ public class ExpView implements Serializable{
             if (!needsUpdate)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             double x = buffer.value;
 
             String buttonLabel = this.label;
@@ -1431,6 +1471,8 @@ public class ExpView implements Serializable{
 
         private String gridColor;
 
+        private SpectroscopyCalibrationManager.CalibrationMode calibrationMode;
+
         GraphView.scaleMode scaleMinX = GraphView.scaleMode.auto;
         GraphView.scaleMode scaleMaxX = GraphView.scaleMode.auto;
         GraphView.scaleMode scaleMinY = GraphView.scaleMode.auto;
@@ -1452,8 +1494,8 @@ public class ExpView implements Serializable{
         final String warningText;
 
         //Quite usual constructor...
-        graphElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        graphElement(String label, String visibility, Vector<String> valueOutputs, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutputs, inputs, res);
             this.self = this;
 
             margin = res.getDimensionPixelSize(R.dimen.activity_vertical_margin);
@@ -1634,6 +1676,11 @@ public class ExpView implements Serializable{
                 gv.graphSetup.incrementalX = pu;
         }
 
+        protected void setCalibrationMode(SpectroscopyCalibrationManager.CalibrationMode calibrationMode){
+            this.calibrationMode = calibrationMode;
+        }
+
+
         @Override
         //The update mode is "partial" or "full" as this element uses arrays. The experiment may
         //decide if partial updates are sufficient
@@ -1676,6 +1723,11 @@ public class ExpView implements Serializable{
             interactiveGV.setLayoutParams(lp);
             interactiveGV.setLabel(this.label);
             interactiveGV.setShowColorScale(showColorScale);
+            interactiveGV.setCalibrationMode(calibrationMode, c,  self.parent);
+            if(calibrationMode == SpectroscopyCalibrationManager.CalibrationMode.X_LINEAR){
+                interactiveGV.setSlopeBuffer(experiment.getBuffer(outputs.get(0)));
+                interactiveGV.setInterceptBuffer(experiment.getBuffer(outputs.get(1)));
+            }
 
             if (act instanceof Experiment) {
                 DataExport dataExport = new DataExport(experiment);
@@ -1778,7 +1830,7 @@ public class ExpView implements Serializable{
             if (!needsUpdate)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             for (int i = 0; i < inputs.size(); i+=2) {
                 if (inputs.size() > i+1) {
                     DataBuffer x = experiment.getBuffer(inputs.get(i+1));
@@ -2192,6 +2244,7 @@ public class ExpView implements Serializable{
                 interactiveGV.requestLayout();
 
                 interactiveGV.setInteractive(false);
+
             }
         }
 
@@ -2264,6 +2317,7 @@ public class ExpView implements Serializable{
             gv.rescale();
             gv.invalidate();
         }
+
     }
 
     //depthGUI implements a camera preview and interface to customize the data acquisition of the
@@ -2285,8 +2339,8 @@ public class ExpView implements Serializable{
         final String warningText;
 
         //Quite usual constructor...
-        depthGuiElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        depthGuiElement(String label, String visibility, String valueOutput, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutput, inputs, res);
             this.self = this;
 
             margin = res.getDimensionPixelSize(R.dimen.graph_label_start_margin);
@@ -2381,7 +2435,7 @@ public class ExpView implements Serializable{
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
             ));
-            modeControl.setVisibility(View.GONE);
+            modeControl.setVisibility(GONE);
             class ModeItem {
                 public final DepthInput.DepthExtractionMode key;
                 public final String value;
@@ -2439,7 +2493,7 @@ public class ExpView implements Serializable{
             textInputCameraSelection.addView(autoCompleteTvCameraSelection);
             layout.addView(textInputCameraSelection);
 
-            textInputCameraSelection.setVisibility(View.GONE);
+            textInputCameraSelection.setVisibility(GONE);
             class CameraItem {
                 public final String key, value;
                 CameraItem(String key, String value) {
@@ -2531,11 +2585,11 @@ public class ExpView implements Serializable{
                     collapseImage.setVisibility(INVISIBLE);
                 }
                 if (modeControl != null)
-                    modeControl.setVisibility(View.GONE);
+                    modeControl.setVisibility(GONE);
                 if (cameraSelection != null)
-                    cameraSelection.setVisibility(View.GONE);
+                    cameraSelection.setVisibility(GONE);
                 if(textInputCameraSelection != null)
-                    textInputCameraSelection.setVisibility(View.GONE);
+                    textInputCameraSelection.setVisibility(GONE);
 
                 rootView.getLayoutParams().height = LinearLayout.LayoutParams.WRAP_CONTENT;
                 rootView.requestLayout();
@@ -2567,6 +2621,11 @@ public class ExpView implements Serializable{
                 cv.setInteractive(true);
             }
         }
+
+        @Override
+        protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
+            super.onMayReadFromBuffers(experiment);
+        }
     }
 
     enum ImageFilter {
@@ -2583,8 +2642,8 @@ public class ExpView implements Serializable{
         private ImageFilter lightFilter = ImageFilter.none;
 
         //Label is not used
-        imageElement(String valueOutput, Vector<String> inputs, Resources res, String src) {
-            super("", valueOutput, inputs, res);
+        imageElement(String valueOutput, String visibility, Vector<String> inputs, Resources res, String src) {
+            super("", visibility, valueOutput, inputs, res);
             this.src = src;
         }
 
@@ -2693,6 +2752,10 @@ public class ExpView implements Serializable{
             return "<div class=\"imageElement\" id=\"element" + htmlID + "\"><img style=\"width: " + (100.0*scale) + "% \" class=\"lightFilter_" + lightFilter.toString() + " darkFilter_" + darkFilter.toString() + "\" src=\"res?src=" + src + "\"></p></div>";
         }
 
+        @Override
+        protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
+            super.onMayReadFromBuffers(experiment);
+        }
     }
 
     public class cameraElement extends expViewElement implements  Serializable {
@@ -2727,8 +2790,8 @@ public class ExpView implements Serializable{
         };
 
 
-        protected cameraElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        protected cameraElement(String label, String visibility, String valueOutput, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutput, inputs, res);
             warningText = res.getString(R.string.remoteCameraPreviewWarning).replace("'", "\\'");
         }
 
@@ -2861,8 +2924,8 @@ public class ExpView implements Serializable{
 
         SwitchMaterial switchView;
 
-        protected toggleElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        protected toggleElement(String label, String visibility, String valueOutput, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutput, inputs, res);
         }
 
         @Override
@@ -2927,6 +2990,7 @@ public class ExpView implements Serializable{
 
         @Override
         protected void onMayReadFromBuffers(PhyphoxExperiment experiment) {
+            super.onMayReadFromBuffers(experiment);
             if (switchView == null)
                 return;
 
@@ -3026,8 +3090,8 @@ public class ExpView implements Serializable{
             this.color = c;
         }
 
-        protected dropDownElement(String label, String valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        protected dropDownElement(String label, String visibility, String valueOutput, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutput, inputs, res);
         }
 
         @Override
@@ -3127,7 +3191,7 @@ public class ExpView implements Serializable{
             if (!needsUpdate || triggered || autoCompleteTextView == null)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             double x = experiment.getBuffer(inputs.get(0)).value;
 
             int index= -1;
@@ -3238,8 +3302,8 @@ public class ExpView implements Serializable{
         Slider slider;
         RangeSlider rangeSlider;
 
-        protected sliderElement(String label,  Vector<String> valueOutput, Vector<String> inputs, Resources res) {
-            super(label, valueOutput, inputs, res);
+        protected sliderElement(String label, String visibility, Vector<String> valueOutput, Vector<String> inputs, Resources res) {
+            super(label, visibility, valueOutput, inputs, res);
         }
 
         public void setDefaultValue(double defaultValue) {
@@ -3463,7 +3527,7 @@ public class ExpView implements Serializable{
             if (!needsUpdate || triggered)
                 return;
             needsUpdate = false;
-
+            super.onMayReadFromBuffers(experiment);
             if (inputs.size() == 0)
                 return;
             double value = experiment.getBuffer(inputs.get(0)).value;

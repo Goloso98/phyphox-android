@@ -44,19 +44,19 @@ public class GraphView extends View {
     }
 
     public static Style styleFromStr(String str) {
-        switch (str) {
-            case "lines": return Style.lines;
-            case "dots": return Style.dots;
-            case "hbars": return Style.hbars;
-            case "vbars": return Style.vbars;
-            case "map": return Style.mapXY;
-            case "mapZ": return Style.mapZ;
-        }
-        return Style.unknown;
+        return switch (str) {
+            case "lines" -> Style.lines;
+            case "dots" -> Style.dots;
+            case "hbars" -> Style.hbars;
+            case "vbars" -> Style.vbars;
+            case "map" -> Style.mapXY;
+            case "mapZ" -> Style.mapZ;
+            default -> Style.unknown;
+        };
     }
 
     public enum TouchMode {
-        off, zoom, pick;
+        off, zoom, pick, calibrate;
     }
 
     interface PointInfo {
@@ -149,6 +149,7 @@ public class GraphView extends View {
     boolean followX = false;
 
     private TouchMode touchMode = TouchMode.off;
+    public boolean isSpectroscopyCalibrated = false;
     public class ZoomState implements Serializable {
         double minX = Double.NaN;
         double maxX = Double.NaN;
@@ -308,6 +309,10 @@ public class GraphView extends View {
     }
 
     public void setTouchMode(TouchMode touchMode) {
+        if(isSpectroscopyCalibrated){
+            this.touchMode = TouchMode.off;
+            return;
+        }
         this.touchMode = touchMode;
         if (touchMode == TouchMode.off) {
             resetPicks();
@@ -316,13 +321,12 @@ public class GraphView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        switch (touchMode) {
-            case zoom:
-                return onTouchEventZoom(event);
-            case pick:
-                return onTouchEventPick(event);
-        }
-        return super.onTouchEvent(event);
+        return switch (touchMode) {
+            case zoom -> onTouchEventZoom(event);
+            case pick -> onTouchEventPick(event);
+            case calibrate -> onTouchEventCalibrate(event);
+            default -> super.onTouchEvent(event);
+        };
     }
 
     private void highlightNearestPoint(float x, float y, int index) {
@@ -457,6 +461,56 @@ public class GraphView extends View {
                 highlightNearestPoint(x, y, 1);
 
                 getParent().requestDisallowInterceptTouchEvent(true);
+                break;
+            }
+            case MotionEvent.ACTION_UP: {
+
+                processingGesture = false;
+
+                getParent().requestDisallowInterceptTouchEvent(false);
+                break;
+            }
+            case MotionEvent.ACTION_CANCEL: {
+
+                getParent().requestDisallowInterceptTouchEvent(false);
+                break;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean onTouchEventCalibrate(MotionEvent event){
+
+        if (pointInfoListener == null)
+            return true;
+
+        final float x = event.getX();
+        final float y = event.getY();
+
+        if (!processingGesture
+                && (!(x > graphSetup.plotBoundL && x < graphSetup.plotBoundL + graphSetup.plotBoundW && y > graphSetup.plotBoundT && y < graphSetup.plotBoundT + graphSetup.plotBoundH)))
+            return super.onTouchEvent(event);
+
+        final int action = event.getAction();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN: {
+                processingGesture = true;
+
+                pickXStart = x;
+                pickYStart = y;
+
+                pickedPointIndex[1] = -1;
+                pointInfoListener.hidePointInfo(1);
+                highlightNearestPoint(x, y, 0);
+
+                getParent().requestDisallowInterceptTouchEvent(true);
+                break;
+            }
+            case MotionEvent.ACTION_MOVE: {
+
+                getParent().requestDisallowInterceptTouchEvent(false);
                 break;
             }
             case MotionEvent.ACTION_UP: {

@@ -92,6 +92,52 @@ public abstract class OpenGLHelper {
             "   gl_Position = vec4(vertices, 0., 1.);" +
             "}";
 
+    final static String interpolatingHeightFullScreenVertexShader =
+            "precision highp float;" +
+                    "attribute vec2 vertices;" +
+                    "attribute vec2 texCoordinates;" +
+                    "uniform vec2 resSource;" +
+                    "uniform vec2 resTarget;" +
+                    "varying vec2 texPosition1;" +
+                    "varying vec2 texPosition2;" +
+                    "varying vec2 texPosition3;" +
+                    "varying vec2 texPosition4;" +
+                    "void main () {" +
+                    "   float x1 = texCoordinates.x;" +
+                    "   float y1 = (4.0 * resTarget.y * texCoordinates.y - 1.5) / resSource.y;" +
+                    "   float y2 = (4.0 * resTarget.y * texCoordinates.y - 0.5) / resSource.y;" +
+                    "   float y3 = (4.0 * resTarget.y * texCoordinates.y + 0.5) / resSource.y;" +
+                    "   float y4 = (4.0 * resTarget.y * texCoordinates.y + 1.5) / resSource.y;" +
+                    "   texPosition1 = vec2(x1, y1);" +
+                    "   texPosition2 = vec2(x1, y2);" +
+                    "   texPosition3 = vec2(x1, y3);" +
+                    "   texPosition4 = vec2(x1, y4);" +
+                    "   gl_Position = vec4(vertices, 0., 1.);" +
+                    "}";
+
+    final static String interpolatingWidthFullScreenVertexShader =
+            "precision highp float;" +
+                    "attribute vec2 vertices;" +
+                    "attribute vec2 texCoordinates;" +
+                    "uniform vec2 resSource;" +
+                    "uniform vec2 resTarget;" +
+                    "varying vec2 texPosition1;" +
+                    "varying vec2 texPosition2;" +
+                    "varying vec2 texPosition3;" +
+                    "varying vec2 texPosition4;" +
+                    "void main () {" +
+                    "   float y1 = texCoordinates.y;" +
+                    "   float x1 = (4.0 * resTarget.x * texCoordinates.x - 1.5) / resSource.x;" +
+                    "   float x2 = (4.0 * resTarget.x * texCoordinates.x - 0.5) / resSource.x;" +
+                    "   float x3 = (4.0 * resTarget.x * texCoordinates.x + 0.5) / resSource.x;" +
+                    "   float x4 = (4.0 * resTarget.x * texCoordinates.x + 1.5) / resSource.x;" +
+                    "   texPosition1 = vec2(x1, y1);" +
+                    "   texPosition2 = vec2(x2, y1);" +
+                    "   texPosition3 = vec2(x3, y1);" +
+                    "   texPosition4 = vec2(x4, y1);" +
+                    "   gl_Position = vec4(vertices, 0., 1.);" +
+                    "}";
+
     final static float[] fullScreenVertices = {-1.f, -1.f, 1.f, -1.f, -1.f, 1.f, 1.f, 1.f};
     final static float[] fullScreenTexCoordinates = {0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 1.f, 1.f};
     static FloatBuffer fullScreenVertexBuffer, fullScreenTexCoordinateBuffer;

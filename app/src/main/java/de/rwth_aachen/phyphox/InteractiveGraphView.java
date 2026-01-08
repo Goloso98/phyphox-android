@@ -14,6 +14,7 @@ import android.view.Gravity;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
@@ -37,9 +38,12 @@ import androidx.core.widget.ImageViewCompat;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 
+import java.util.ArrayList;
+import java.util.List;
+
 import de.rwth_aachen.phyphox.Helper.Helper;
 
-public class InteractiveGraphView extends RelativeLayout implements GraphView.PointInfo {
+public class InteractiveGraphView extends RelativeLayout implements GraphView.PointInfo, SpectroscopyCalibrationManager.SpectroscopyCalibrationDelegate {
 
     private boolean interactive = false;
     private boolean linearRegression = false;
@@ -56,6 +60,12 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
     View rootView;
     FrameLayout graphFrame;
+
+    private boolean enableCalibrationMode = true;
+    private SpectroscopyCalibrationManager.CalibrationMode calibrationMode = SpectroscopyCalibrationManager.CalibrationMode.UNKNOWN;
+
+    private DataBuffer slopeBuffer = null;
+    private  DataBuffer interceptBuffer = null;
 
     private class Marker {
         boolean active = false;
@@ -89,6 +99,11 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     public PopupWindow popupWindowInfo = null;
     TextView popupWindowText = null;
     MarkerOverlayView markerOverlayView;
+    private SpectroscopyCalibrationManager spectroscopyCalibrationManager;
+    private TextView spectroscopyStatusLabel;
+
+    private List<View> calibrationMarkerViews = new ArrayList<>();
+    private boolean needsCalibrationMarkerUpdate = false;
 
     public InteractiveGraphView(Context context) {
         super(context);
@@ -121,89 +136,97 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         });
 
         toolbar.inflateMenu(R.menu.graph_menu);
+
         toolbar.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 switch (item.getItemId()) {
                     case R.id.graph_tools_pan:
+                        if(enableCalibrationMode){
+                            if(!graphView.isSpectroscopyCalibrated) spectroscopyCalibrationManager.resetCalibration();
+                        }
                         graphView.setTouchMode(GraphView.TouchMode.zoom);
                         return true;
                     case R.id.graph_tools_pick:
+                        if(enableCalibrationMode){
+                            removePopUpAndMarkerOverlayView();
+                            if(!graphView.isSpectroscopyCalibrated) spectroscopyCalibrationManager.resetCalibration();
+                        }
                         graphView.setTouchMode(GraphView.TouchMode.pick);
                         return true;
+                    case R.id.graph_tools_calibrate:
+                        removePopUpAndMarkerOverlayView();
+                        Log.d("Interactive", "calibrationMode"+calibrationMode);
+                        Log.d("Interactive", "calibrationMarkerViews"+calibrationMarkerViews.size());
+                        if(calibrationMarkerViews.size() > 0){
+                            Log.d("Interactive", "calibrationMarkerViews"+calibrationMarkerViews.get(0).getVisibility());
+                        }
+
+                        Log.d("Interactive", "enableCalibrationMode"+enableCalibrationMode);
+                        Log.d("Interactive", "marker"+marker.length);
+                        graphView.setTouchMode(GraphView.TouchMode.calibrate);
+                        if(!graphView.isSpectroscopyCalibrated) spectroscopyCalibrationManager.resetCalibration();
+                        return true;
                     case R.id.graph_tools_more:
-                        PopupMenu popup = new PopupMenu(getContext(), findViewById(R.id.graph_tools_more));
-                        popup.getMenuInflater().inflate(R.menu.graph_tools_menu, popup.getMenu());
-                        popup.getMenu().findItem(R.id.graph_tools_system_time).setVisible((graphView.timeOnX || graphView.timeOnY) && graphView.style[0] != GraphView.Style.mapXY);
-                        popup.getMenu().findItem(R.id.graph_tools_system_time).setChecked(graphView.absoluteTime);
-                        popup.getMenu().findItem(R.id.graph_tools_follow).setChecked(graphView.zoomState.follows);
-                        popup.getMenu().findItem(R.id.graph_tools_follow).setVisible(graphView.graphSetup.incrementalX);
-                        popup.getMenu().findItem(R.id.graph_tools_export).setVisible(dataExport != null);
-                        popup.getMenu().findItem(R.id.graph_tools_log_x).setVisible(allowLogX);
-                        popup.getMenu().findItem(R.id.graph_tools_log_y).setVisible(allowLogY);
-                        popup.getMenu().findItem(R.id.graph_tools_log_x).setChecked(graphView.logX);
-                        popup.getMenu().findItem(R.id.graph_tools_log_y).setChecked(graphView.logY);
-                        boolean hasMap = false;
-                        for (GraphView.Style style : graphView.style)
-                            if (style == GraphView.Style.mapXY)
-                                hasMap = true;
-                        popup.getMenu().findItem(R.id.graph_tools_linear_fit).setVisible(!(allowLogX || allowLogY || hasMap));
-                        popup.getMenu().findItem(R.id.graph_tools_linear_fit).setChecked(linearRegression);
-
-                        popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-                            @Override
-                            public boolean onMenuItemClick(MenuItem menuItem) {
-                                int id = menuItem.getItemId();
-                                if (id == R.id.graph_tools_linear_fit) {
-                                    linearRegression = !linearRegression;
-                                    graphView.resetPicks();
-                                    updateInfo();
-                                } else if (id == R.id.graph_tools_system_time) {
-                                    graphView.setAbsoluteTime(!graphView.absoluteTime);
-                                    graphView.invalidate();
-                                } else if (id == R.id.graph_tools_reset) {
-                                    graphView.zoomState.follows = graphView.followX;
-                                    if (graphView.followX) {
-                                        graphView.zoomState.minX = graphView.minX;
-                                        graphView.zoomState.maxX = graphView.maxX;
-                                    } else {
-                                        graphView.zoomState.minX = Double.NaN;
-                                        graphView.zoomState.maxX = Double.NaN;
-                                    }
-                                    graphView.zoomState.minY = Double.NaN;
-                                    graphView.zoomState.maxY = Double.NaN;
-                                    graphView.zoomState.minZ = Double.NaN;
-                                    graphView.zoomState.maxZ = Double.NaN;
-                                    graphView.invalidate();
-                                } else if (id == R.id.graph_tools_follow) {
-                                    if (Double.isNaN(graphView.zoomState.minX) || Double.isNaN(graphView.zoomState.maxX)) {
-                                        graphView.zoomState.minX = graphView.minX;
-                                        graphView.zoomState.maxX = graphView.maxX;
-                                    }
-                                    graphView.zoomState.follows = !graphView.zoomState.follows;
-                                    graphView.invalidate();
-                                } else if (id == R.id.graph_tools_export) {
-                                    Context ctx = getContext();
-                                    Activity act = null;
-                                    while (ctx instanceof ContextWrapper) {
-                                        if (ctx instanceof Activity) {
-                                            act = (Activity) ctx;
-                                        }
-                                        ctx = ((ContextWrapper) ctx).getBaseContext();
-                                    }
-                                    if (act != null)
-                                        dataExport.export(act, true);
-                                } else if (id == R.id.graph_tools_log_x) {
-                                    graphView.setLogScale(!graphView.logX, graphView.logY, graphView.logZ);
-                                    graphView.invalidate();
-                                } else if (id == R.id.graph_tools_log_y) {
-                                    graphView.setLogScale(graphView.logX, !graphView.logY, graphView.logZ);
-                                    graphView.invalidate();
-                                }
-                                return false;
+                        PopupMenu popup = createGraphToolPopUpMenu();
+                        popup.setOnMenuItemClickListener(menuItem -> {
+                            int id = menuItem.getItemId();
+                            if (id == R.id.graph_tools_linear_fit) {
+                                linearRegression = !linearRegression;
+                                graphView.resetPicks();
+                                updateInfo();
+                            } else if (id == R.id.graph_tools_system_time) {
+                                graphView.setAbsoluteTime(!graphView.absoluteTime);
+                                graphView.invalidate();
                             }
+                            else if (id == R.id.graph_tools_reset) {
+                                graphView.zoomState.follows = graphView.followX;
+                                if (graphView.followX) {
+                                    graphView.zoomState.minX = graphView.minX;
+                                    graphView.zoomState.maxX = graphView.maxX;
+                                } else {
+                                    graphView.zoomState.minX = Double.NaN;
+                                    graphView.zoomState.maxX = Double.NaN;
+                                }
+                                graphView.zoomState.minY = Double.NaN;
+                                graphView.zoomState.maxY = Double.NaN;
+                                graphView.zoomState.minZ = Double.NaN;
+                                graphView.zoomState.maxZ = Double.NaN;
+                                graphView.invalidate();
+                            }
+                            else if (id == R.id.graph_tools_follow) {
+                                if (Double.isNaN(graphView.zoomState.minX) || Double.isNaN(graphView.zoomState.maxX)) {
+                                    graphView.zoomState.minX = graphView.minX;
+                                    graphView.zoomState.maxX = graphView.maxX;
+                                }
+                                graphView.zoomState.follows = !graphView.zoomState.follows;
+                                graphView.invalidate();
+                            }
+                            else if (id == R.id.graph_tools_export) {
+                                Context ctx = getContext();
+                                Activity act = null;
+                                while (ctx instanceof ContextWrapper) {
+                                    if (ctx instanceof Activity) {
+                                        act = (Activity) ctx;
+                                    }
+                                    ctx = ((ContextWrapper) ctx).getBaseContext();
+                                }
+                                if (act != null)
+                                    dataExport.export(act, true);
+                            }
+                            else if (id == R.id.graph_tools_log_x) {
+                                graphView.setLogScale(!graphView.logX, graphView.logY, graphView.logZ);
+                                graphView.invalidate();
+                            }
+                            else if (id == R.id.graph_tools_log_y) {
+                                graphView.setLogScale(graphView.logX, !graphView.logY, graphView.logZ);
+                                graphView.invalidate();
+                            }
+                            else  if(id == R.id.graph_reset_calibration){
+                                resetSpectroscopyCalibration();
+                            }
+                            return false;
                         });
-
                         popup.show();
                 }
                 return false;
@@ -234,6 +257,71 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
                 ViewGroup.LayoutParams.MATCH_PARENT));
         markerOverlayView.setGraphSetup(graphView.graphSetup);
         graphFrame.addView(markerOverlayView);
+
+        if(!enableCalibrationMode) return;
+        // Since the height of the graph is updated during plot rendering, the update of
+        // the calibration confirmation marker height need to be readjusted after the rendering is complete.
+        plotRenderer.getGraphSetup().setOnRenderedPlotResizedListener(graphHeight -> {
+            if (needsCalibrationMarkerUpdate) {
+                updateCalibrationConfirmationMarkerWith(graphHeight);
+                needsCalibrationMarkerUpdate = false;
+            }
+        });
+    }
+
+    private TextView createStatusLabel(Context context){
+        // Add spectroscopy status label
+        TextView spectroscopyStatusLabel = new TextView(context);
+
+        FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+
+        statusParams.gravity = Gravity.TOP | Gravity.END;
+
+        statusParams.topMargin = 8;
+        statusParams.rightMargin = 24;
+        spectroscopyStatusLabel.setLayoutParams(statusParams);
+        spectroscopyStatusLabel.setTextSize(14);
+
+        if (Helper.isDarkTheme(getResources())) {
+            spectroscopyStatusLabel.setBackgroundColor(getResources().getColor(R.color.phyphox_black_60));
+            spectroscopyStatusLabel.setTextColor(getResources().getColor(R.color.phyphox_white_100));
+        } else {
+            spectroscopyStatusLabel.setBackgroundColor(getResources().getColor(R.color.phyphox_white_100));
+            spectroscopyStatusLabel.setTextColor(getResources().getColor(R.color.phyphox_black_100));
+        }
+
+        return spectroscopyStatusLabel;
+    }
+
+    private PopupMenu createGraphToolPopUpMenu(){
+        PopupMenu popup = new PopupMenu(getContext(), findViewById(R.id.graph_tools_more));
+        popup.getMenuInflater().inflate(R.menu.graph_tools_menu, popup.getMenu());
+        popup.getMenu().findItem(R.id.graph_tools_system_time).setVisible((graphView.timeOnX || graphView.timeOnY) && graphView.style[0] != GraphView.Style.mapXY);
+        popup.getMenu().findItem(R.id.graph_tools_system_time).setChecked(graphView.absoluteTime);
+        popup.getMenu().findItem(R.id.graph_tools_follow).setChecked(graphView.zoomState.follows);
+        popup.getMenu().findItem(R.id.graph_tools_follow).setVisible(graphView.graphSetup.incrementalX);
+        popup.getMenu().findItem(R.id.graph_tools_export).setVisible(dataExport != null);
+        popup.getMenu().findItem(R.id.graph_tools_log_x).setVisible(allowLogX);
+        popup.getMenu().findItem(R.id.graph_tools_log_y).setVisible(allowLogY);
+        popup.getMenu().findItem(R.id.graph_tools_log_x).setChecked(graphView.logX);
+        popup.getMenu().findItem(R.id.graph_tools_log_y).setChecked(graphView.logY);
+        popup.getMenu().findItem(R.id.graph_reset_calibration).setVisible(enableCalibrationMode);
+        boolean hasMap = false;
+        for (GraphView.Style style : graphView.style)
+            if (style == GraphView.Style.mapXY)
+                hasMap = true;
+        popup.getMenu().findItem(R.id.graph_tools_linear_fit).setVisible(!(allowLogX || allowLogY || hasMap));
+        popup.getMenu().findItem(R.id.graph_tools_linear_fit).setChecked(linearRegression);
+        return popup;
+
+    }
+
+    private void removePopUpAndMarkerOverlayView(){
+        removePopupInfo();
+        markerOverlayView.update(null, null);
     }
 
     private void setExpandCollapseImageColor(Context context) {
@@ -247,8 +335,6 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             ImageViewCompat.setImageTintList(collapseImage, ColorStateList.valueOf(ContextCompat.getColor(context, R.color.phyphox_black_100)));
             ImageViewCompat.setImageTintList(expandImage, ColorStateList.valueOf(ContextCompat.getColor(context, R.color.phyphox_black_100)));
             toolbar.setBackgroundColor(getResources().getColor(R.color.phyphox_white_100));
-
-
         }
     }
 
@@ -446,9 +532,11 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             graphView.setTouchMode(GraphView.TouchMode.zoom);
         else if (toolbar.getSelectedItemId() == R.id.graph_tools_pick)
             graphView.setTouchMode(GraphView.TouchMode.pick);
+        else if (toolbar.getSelectedItemId() == R.id.graph_tools_calibrate)
+            graphView.setTouchMode(GraphView.TouchMode.calibrate);
+        resizeCalibrationConfirmationHeight();
 
         toolbar.setVisibility(interactive ? VISIBLE : GONE);
-
         expandImage.setVisibility(interactive ? INVISIBLE : VISIBLE);
         collapseImage.setVisibility(interactive ? VISIBLE : INVISIBLE);
 
@@ -467,7 +555,39 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
     private void setPopupInfo(int x, int y, String text) {
         if (popupWindowInfo == null) {
             View pointInfoView = inflate(getContext(), R.layout.point_info, null);
-            popupWindowText = pointInfoView.findViewById(R.id.point_info_text);
+            popupWindowText = pointInfoView.findViewById(R.id.pointInfoText);
+            TextView pointConfirmationTextView = pointInfoView.findViewById(R.id.pointInfoConfirmationText);
+            Button btnContinue = pointInfoView.findViewById(R.id.btnContinue);
+            Button btnCancel = pointInfoView.findViewById(R.id.btnCancel);
+            btnContinue.setOnClickListener(view -> {
+                // Get the current marker position
+                Marker activeMarker = marker[0].active ? marker[0] : marker[1];
+                if (activeMarker.active) {
+                    onCalibrationPointSelected(
+                            activeMarker.viewX,
+                            activeMarker.viewY,
+                            activeMarker.dataX,
+                            activeMarker.dataY
+                    );
+                    popupWindowInfo.dismiss();
+                    popupWindowInfo = null;
+                }
+            });
+
+            btnCancel.setOnClickListener(view -> {
+                popupWindowInfo.dismiss();
+                popupWindowInfo = null;
+            });
+            if(toolbar.getSelectedItemId() == R.id.graph_tools_calibrate){
+                pointConfirmationTextView.setVisibility(VISIBLE);
+                btnContinue.setVisibility(VISIBLE);
+                btnCancel.setVisibility(VISIBLE);
+                pointConfirmationTextView.setText(getResources().getString(R.string.spectroscopy_confirm_point));
+            } else {
+                pointConfirmationTextView.setVisibility(GONE);
+                btnContinue.setVisibility(GONE);
+                btnCancel.setVisibility(GONE);
+            }
             popupWindowInfo = new PopupWindow(
                     pointInfoView,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -476,16 +596,20 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             if(Helper.isDarkTheme(getResources())){
                 pointInfoView.setBackgroundColor(getResources().getColor(R.color.phyphox_white_100));
                 popupWindowText.setTextColor(getResources().getColor(R.color.phyphox_black_100));
+                pointConfirmationTextView.setTextColor(getResources().getColor(R.color.phyphox_black_100));
             } else{
                 pointInfoView.setBackgroundColor(getResources().getColor(R.color.phyphox_black_100));
                 popupWindowText.setTextColor(getResources().getColor(R.color.phyphox_white_100));
+                pointConfirmationTextView.setTextColor(getResources().getColor(R.color.phyphox_white_100));
             }
             if (Build.VERSION.SDK_INT >= 21){
                 popupWindowInfo.setElevation(4.0f);
             }
-            popupWindowInfo.setOutsideTouchable(false);
-            popupWindowInfo.setTouchable(false);
+
             popupWindowInfo.setFocusable(false);
+            popupWindowInfo.setOutsideTouchable(false);
+            popupWindowInfo.setTouchable(toolbar.getSelectedItemId() == R.id.graph_tools_calibrate);
+
             popupWindowInfo.showAtLocation(graphFrame, Gravity.BOTTOM | Gravity.CENTER, x, y);
         } else {
             popupWindowInfo.update(x, y, -1, -1);
@@ -578,7 +702,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
             setPopupInfo(infoX, infoY, sb.toString());
 
 
-        } else if (marker[0].active && marker[1].active) {
+        }
+        else if (marker[0].active && marker[1].active) {
 
             Point[] points = new Point[2];
             points[0] = new Point(Math.round(marker[0].viewX), Math.round(marker[0].viewY));
@@ -623,7 +748,8 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
             setPopupInfo(infoX, infoY, sb.toString());
 
-        } else if (marker[0].active || marker[1].active) {
+        }
+        else if (marker[0].active || marker[1].active) {
 
             int pos[] = new int[2];
             graphView.getLocationInWindow(pos);
@@ -654,9 +780,9 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
 
             setPopupInfo(infoX, infoY, sb.toString());
 
-        } else {
-            removePopupInfo();
-            markerOverlayView.update(null, null);
+        }
+        else {
+            removePopUpAndMarkerOverlayView();
         }
     }
 
@@ -694,5 +820,208 @@ public class InteractiveGraphView extends RelativeLayout implements GraphView.Po
         if(this.graphView != null)
             this.graphView.setShowColorScaleForColorMapChart(showColorScale);
     }
+
+    public void setCalibrationMode(SpectroscopyCalibrationManager.CalibrationMode calibrationMode, Context context, ExpViewFragment parent){
+        if(calibrationMode != SpectroscopyCalibrationManager.CalibrationMode.UNKNOWN){
+            this.calibrationMode = calibrationMode;
+            this.enableCalibrationMode = true;
+        } else {
+            return;
+        }
+
+        spectroscopyStatusLabel = createStatusLabel(context);
+        spectroscopyStatusLabel.setText(getResources().getString(R.string.calibration_invalid));
+        graphFrame.addView(spectroscopyStatusLabel);
+
+        if(spectroscopyCalibrationManager == null){
+            spectroscopyCalibrationManager = new SpectroscopyCalibrationManager(context, parent);
+            spectroscopyCalibrationManager.setDelegate(this);
+        }
+
+        setCalibrationMenuItemVisibility();
+    }
+
+    private void setCalibrationMenuItemVisibility(){
+        MenuItem calibrationItem = toolbar.getMenu().findItem(R.id.graph_tools_calibrate);
+        if(calibrationItem != null){
+            calibrationItem.setVisible(enableCalibrationMode);
+        }
+    }
+
+    public void  setSlopeBuffer(DataBuffer slopeBuffer){
+        this.slopeBuffer = slopeBuffer;
+    }
+
+    public void  setInterceptBuffer(DataBuffer interceptBuffer){
+        this.interceptBuffer = interceptBuffer;
+    }
+
+    @Override
+    public void spectroscopyUnCalibrated(SpectroscopyCalibrationManager manager) {
+        spectroscopyStatusLabel.setText("");
+        spectroscopyStatusLabel.setVisibility(GONE);
+        clearCalibrationMarkers();
+        markerOverlayView.update(null, null);
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidStart(SpectroscopyCalibrationManager manager) {
+        spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_tap_first_point));
+        spectroscopyStatusLabel.setVisibility(VISIBLE);
+        clearCalibrationMarkers();
+        markerOverlayView.update(null, null);
+        graphView.resetPicks();
+        this.graphView.isSpectroscopyCalibrated = false;
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidUpdatePoints(SpectroscopyCalibrationManager manager,
+                                                       List<SpectroscopyCalibrationManager.CalibrationPoint> points,
+                                                       SpectroscopyCalibrationManager.CalibrationState state) {
+
+        switch (state) {
+            case FIRST_POINT_SELECTED:
+                spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_tap_second_point));
+                showCalibrationPointMarkers(points);
+                break;
+            case SECOND_POINT_SELECTED:
+                spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_calculating));
+                showCalibrationPointMarkers(points);
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidComplete(SpectroscopyCalibrationManager manager,
+                                                   double slope, double intercept) {
+        String calibrationInfo = manager.getCalibrationInfo();
+        if (calibrationInfo != null) {
+            spectroscopyStatusLabel.setText(calibrationInfo);
+        }
+
+        markerOverlayView.update(null, null);
+
+        updateCalibrationParametersBuffer(slope,intercept);
+
+        this.graphView.isSpectroscopyCalibrated = true;
+        graphView.setTouchMode(GraphView.TouchMode.off);
+
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidReset(SpectroscopyCalibrationManager manager) {
+        spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_tap_first_point));
+        clearCalibrationMarkers();
+        markerOverlayView.update(null, null);
+        graphView.resetPicks();
+
+        updateCalibrationParametersBuffer(1,0);
+        this.graphView.isSpectroscopyCalibrated = false;
+    }
+
+    @Override
+    public void spectroscopyCalibrationDidDismiss(SpectroscopyCalibrationManager manager) {
+        clearCalibrationMarkers();
+    }
+
+    @Override
+    public void spectroscopyCalibrationShouldPresentDialog(SpectroscopyCalibrationManager manager,
+                                                            AlertDialog dialog) {
+        dialog.show();
+    }
+
+    @Override
+    public void spectroscopyDidFailWithError(SpectroscopyCalibrationManager manager, String error) {
+        spectroscopyStatusLabel.setText(getResources().getString(R.string.spectroscopy_calibration_failed));
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle(getResources().getString(R.string.error))
+                .setMessage(error)
+                .setPositiveButton(getResources().getString(R.string.ok), null)
+                .show();
+    }
+
+
+    private void updateCalibrationConfirmationMarkerWith(int newHeight) {
+        if(!calibrationMarkerViews.isEmpty()){
+            for(View marker: calibrationMarkerViews){
+                marker.setVisibility(VISIBLE);
+                FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(1, newHeight);
+                marker.setLayoutParams(params);
+                marker.requestLayout();
+            }
+        }
+    }
+
+    private void resizeCalibrationConfirmationHeight(){
+        if(!calibrationMarkerViews.isEmpty()){
+            for(View marker: calibrationMarkerViews){
+                marker.setVisibility(GONE);
+                needsCalibrationMarkerUpdate = true;
+            }
+        }
+    }
+
+    public void onCalibrationPointSelected(float viewX, float viewY, float dataX, float dataY) {
+        spectroscopyCalibrationManager.addCalibrationReferencePoint(dataX,
+                calibrationMarkerViews.size());
+
+        spectroscopyCalibrationManager.requestToAddCalibratedPoint(dataX);
+    }
+
+    private void addCalibrationMarker(float x, float y) {
+        View calibrationConfirmationMarkerView = new View(getContext());
+        int markerHeight = plotRenderer.getPlotBoundH();
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(1, markerHeight);
+        calibrationConfirmationMarkerView.setLayoutParams(params);
+        calibrationConfirmationMarkerView.setBackgroundColor(getResources().getColor(R.color.phyphox_red));
+
+        calibrationConfirmationMarkerView.setX(x);
+
+        graphFrame.addView(calibrationConfirmationMarkerView);
+        calibrationMarkerViews.add(calibrationConfirmationMarkerView);
+    }
+
+    private void showCalibrationPointMarkers(
+            List<SpectroscopyCalibrationManager.CalibrationPoint> points) {
+        clearCalibrationMarkers();
+
+        for (int i = 0; i < points.size(); i++) {
+            SpectroscopyCalibrationManager.CalibrationPoint point = points.get(i);
+
+            // Convert data coordinates to view coordinates
+            float viewX = (float) graphView.dataXToViewX(point.pixelPosition);
+            float viewY = graphView.getHeight() / 2f; // Center vertically for spectroscopy
+
+            addCalibrationMarker(viewX, viewY);
+        }
+    }
+
+    private void clearCalibrationMarkers() {
+        for (View marker : calibrationMarkerViews) {
+            graphFrame.removeView(marker);
+        }
+        calibrationMarkerViews.clear();
+    }
+
+    public void resetSpectroscopyCalibration() {
+        if (spectroscopyCalibrationManager != null) {
+            spectroscopyCalibrationManager.resetCalibration();
+        }
+    }
+
+
+    private void updateCalibrationParametersBuffer(double slope, double intercept){
+        if(slopeBuffer != null && interceptBuffer != null){
+            slopeBuffer.clear(true);
+            slopeBuffer.append(slope);
+            interceptBuffer.clear(true);
+            interceptBuffer.append(intercept);
+        }
+    }
+
 
 }

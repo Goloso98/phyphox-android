@@ -28,6 +28,7 @@ import de.rwth_aachen.phyphox.DataBuffer
 import de.rwth_aachen.phyphox.DataOutput
 import de.rwth_aachen.phyphox.ExperimentTimeReference
 import de.rwth_aachen.phyphox.camera.analyzer.AnalyzingOpenGLRenderer
+import de.rwth_aachen.phyphox.camera.analyzer.SpectrumOrientation
 import de.rwth_aachen.phyphox.camera.helper.CameraHelper
 import de.rwth_aachen.phyphox.camera.model.CameraSettingMode
 import de.rwth_aachen.phyphox.camera.model.CameraState
@@ -63,6 +64,7 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
     var shutterSpeedDataBuffer: DataBuffer? = null
     var isoDataBuffer: DataBuffer? = null
     var apertureDataBuffer: DataBuffer? = null
+    var dataPixelPosition: DataBuffer? = null
 
     enum class AEStrategy {
         mean, avoidUnderxposure, avoidOverexposure, prioritizeFramerate
@@ -73,7 +75,7 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
 
     val dataLock: Lock
 
-    val _cameraSettingState: MutableStateFlow<CameraSettingState>
+    private val _cameraSettingState: MutableStateFlow<CameraSettingState>
     public val cameraSettingState: StateFlow<CameraSettingState>
 
     var lifecycleOwner: LifecycleOwner? = null
@@ -141,6 +143,7 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
                         setupZoomControl()
                         loadAndSetupExposureSettingRanges()
                         updateCaptureRequestOptions(cameraSettingState)
+                        updateSpectroscopyAnalyzerOrientation()
                         _cameraSettingState.emit(
                                 _cameraSettingState.value.copy(
                                         cameraState = CameraState.RUNNING
@@ -167,8 +170,13 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
     }
 
     private fun startCamera() {
-        if (analyzingOpenGLRenderer == null)
-            analyzingOpenGLRenderer = AnalyzingOpenGLRenderer(this, dataLock, cameraSettingState, this)
+        if(analyzingOpenGLRenderer == null){
+            analyzingOpenGLRenderer = AnalyzingOpenGLRenderer(
+                this,
+                dataLock,
+                cameraSettingState,
+                this)
+        }
 
         val cameraSelector = CameraHelper.cameraLensToSelector(cameraSettingState.value.currentLens)
 
@@ -207,6 +215,24 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
                     )
                 )
             }
+        }
+    }
+
+    fun changeSpectrumAnalysisOrientation(currentOrientation: SpectrumOrientation){
+
+        val newState = cameraSettingState.value.copy(
+            spectrumAnalysisOrientation = currentOrientation,
+            cameraState = CameraState.RESTART
+        )
+
+        lifecycleOwner?.lifecycleScope?.launch {
+            _cameraSettingState.emit(newState)
+        }
+    }
+
+    private fun updateSpectroscopyAnalyzerOrientation(){
+        if(isFeatureSpectroscopy() && analyzingOpenGLRenderer != null){
+            analyzingOpenGLRenderer?.setSpectrumOrientation(cameraSettingState.value.spectrumAnalysisOrientation)
         }
     }
 
@@ -419,6 +445,9 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
     lateinit var buffers: Vector<DataOutput>
 
     lateinit var cameraFeature: PhyphoxCameraFeature
+    fun isFeaturePhotometry() = this.cameraFeature == PhyphoxCameraFeature.Photometric;
+    fun isFeatureSpectroscopy() = this.cameraFeature == PhyphoxCameraFeature.Spectroscopy;
+
     var lockedSettings: MutableMap<String, String>? = mutableMapOf()
 
     // Status of the play and pause for image analysis
@@ -465,14 +494,17 @@ class CameraInput : Serializable, AnalyzingOpenGLRenderer.ExposureStatisticsList
         if (buffers.size > 7 && buffers[7] != null) shutterSpeedDataBuffer = buffers[7].buffer
         if (buffers.size > 8 && buffers[8] != null) isoDataBuffer = buffers[8].buffer
         if (buffers.size > 9 && buffers[9] != null) apertureDataBuffer = buffers[9].buffer
+        if (buffers.size > 10 && buffers[10] != null) dataPixelPosition = buffers[10].buffer
 
         this.dataLock = lock
         this.aeStrategy = aeStrategy
         this.thresholdAnalyzerThreshold = thresholdAnalyzerThreshold
+        this.cameraFeature = cameraFeature
     }
 
     enum class PhyphoxCameraFeature {
-        Photometric, ColorDetector, Spectroscopy, MotionAnalysis, OCR
+        Photometric, Spectroscopy, MotionAnalysis
+
     }
 
     fun start() {

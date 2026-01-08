@@ -8,18 +8,21 @@ import androidx.camera.core.Preview
 import androidx.core.view.doOnLayout
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.transition.Visibility
+import de.rwth_aachen.phyphox.camera.CameraInput
 import de.rwth_aachen.phyphox.camera.Scrollable
 import de.rwth_aachen.phyphox.camera.helper.CameraHelper
-import de.rwth_aachen.phyphox.camera.CameraInput
-import de.rwth_aachen.phyphox.camera.model.CameraState
 import de.rwth_aachen.phyphox.camera.model.CameraPreviewState
 import de.rwth_aachen.phyphox.camera.model.CameraSettingLevel
+import de.rwth_aachen.phyphox.camera.model.CameraSettingMode
+import de.rwth_aachen.phyphox.camera.model.CameraState
 import de.rwth_aachen.phyphox.camera.model.CameraUiState
 import de.rwth_aachen.phyphox.camera.model.OverlayUpdateState
-import de.rwth_aachen.phyphox.camera.model.CameraSettingMode
 import de.rwth_aachen.phyphox.camera.model.ShowCameraControls
+import de.rwth_aachen.phyphox.camera.model.ShowSpectroscopyAnalysisControls
 import de.rwth_aachen.phyphox.camera.ui.CameraPreviewScreen
 import de.rwth_aachen.phyphox.camera.ui.ChooseCameraSettingValue
+import de.rwth_aachen.phyphox.camera.viewstate.CameraControlElementViewState
 import de.rwth_aachen.phyphox.camera.viewstate.CameraScreenViewState
 import de.rwth_aachen.phyphox.camera.viewstate.CameraZoomControlViewState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +51,7 @@ class CameraViewModel() : ViewModel() {
                 cameraSettingLevel = cameraSettingLevel
         )
     }
+
     fun start(cameraScreenViewState: MutableStateFlow<CameraScreenViewState>, cameraPreviewScreen: CameraPreviewScreen) {
         this.cameraScreenViewState = cameraScreenViewState
         viewModelScope.launch {
@@ -198,15 +202,11 @@ class CameraViewModel() : ViewModel() {
         }
     }
 
-    fun startCameraPreviewView(
-            cameraPreviewScreen: CameraPreviewScreen
-    ) {
+    fun startCameraPreviewView(cameraPreviewScreen: CameraPreviewScreen) {
         cameraInput.analyzingOpenGLRenderer?.attachTexturePreviewView(cameraPreviewScreen)
     }
 
-    public fun stopCameraPreviewView(
-            cameraPreviewScreen: CameraPreviewScreen
-    ) {
+    public fun stopCameraPreviewView(cameraPreviewScreen: CameraPreviewScreen) {
         cameraInput.analyzingOpenGLRenderer?.detachTexturePreviewView(cameraPreviewScreen)
     }
 
@@ -218,6 +218,8 @@ class CameraViewModel() : ViewModel() {
             cameraInput.switchCamera()
         }
     }
+
+
 
     fun showZoomController() {
         viewModelScope.launch {
@@ -255,8 +257,6 @@ class CameraViewModel() : ViewModel() {
     fun changeAutoExposure(autoExposure: Boolean) {
         cameraInput.setAutoExposure(autoExposure)
     }
-
-
 
     fun openCameraSettingValue(settingMode: CameraSettingMode) {
         val currentCameraUiState = _cameraUiState.value

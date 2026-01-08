@@ -5,6 +5,7 @@ import android.hardware.camera2.CaptureRequest
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.camera.core.CameraSelector
+import de.rwth_aachen.phyphox.camera.analyzer.SpectrumOrientation
 import de.rwth_aachen.phyphox.camera.helper.CameraHelper
 
 /**
@@ -42,7 +43,9 @@ data class CameraSettingState  constructor(
     val cameraWhiteBalanceManualRange: List<Int> = CameraHelper.getWhiteBalanceTemperatureList(),
     val cameraCurrentWhiteBalanceManualValue: FloatArray = CameraHelper.convertTemperatureToRggb(5600),
     val cameraWhiteBalanceModes: List<Int> = CameraHelper.getWhiteBalanceModes().keys.toList(),
-    val cameraCurrentWhiteBalanceMode : Int = CaptureRequest.CONTROL_AWB_MODE_AUTO
+    val cameraCurrentWhiteBalanceMode : Int = CaptureRequest.CONTROL_AWB_MODE_AUTO,
+
+    val spectrumAnalysisOrientation: SpectrumOrientation = SpectrumOrientation.HORIZONTAL_RED_RIGHT
 )
 
 enum class CameraState{

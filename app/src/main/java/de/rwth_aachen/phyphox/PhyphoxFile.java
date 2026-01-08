@@ -1291,6 +1291,7 @@ public abstract class PhyphoxFile {
         @Override
         protected void processStartTag(String tag) throws XmlPullParserException, phyphoxFileException, IOException {
             String label = getTranslatedAttribute("label");
+            String visibility = getStringAttribute("visibility");
             double factor = getDoubleAttribute("factor", 1.);
             String unit = getTranslatedAttribute("unit");
             Vector<DataInput> inputs = new Vector<>();
@@ -1313,7 +1314,7 @@ public abstract class PhyphoxFile {
 
                     Vector<String> inStrings = new Vector<>();
                     inStrings.add(inputs.get(0).buffer.name);
-                    ExpView.valueElement ve = newView.new valueElement(label, null, inStrings, parent.getResources()); //Only a value input
+                    ExpView.valueElement ve = newView.new valueElement(label, visibility,null, inStrings, parent.getResources()); //Only a value input
                     for (ioBlockParser.AdditionalTag at : ats) {
                         if (at.name.equals("input"))
                             continue;
@@ -1363,7 +1364,7 @@ public abstract class PhyphoxFile {
                         gravity = Gravity.CENTER;
                     float size = (float)getDoubleAttribute("size", 1.0);
 
-                    ExpView.infoElement infoe = newView.new infoElement(label, null, null, parent.getResources()); //No inputs, just the label and resources
+                    ExpView.infoElement infoe = newView.new infoElement(label, visibility,null, null, parent.getResources()); //No inputs, just the label and resources
                     infoe.setColor(color);
                     infoe.setFormatting(bold, italic, gravity, size);
                     newView.elements.add(infoe);
@@ -1371,7 +1372,7 @@ public abstract class PhyphoxFile {
                 }
                 case "separator": {
                     //An info element just shows some text
-                    ExpView.separatorElement separatore = newView.new separatorElement(null, null, parent.getResources()); //No inputs, just the label and resources
+                    ExpView.separatorElement separatore = newView.new separatorElement(null, visibility, null, parent.getResources()); //No inputs, just the label and resources
                     RGB c = getColorAttribute("color", new RGB(parent.getResources().getColor(R.color.phyphox_black_60)));
                     float height = (float)getDoubleAttribute("height", 0.1);
                     separatore.setColor(c);
@@ -1393,6 +1394,7 @@ public abstract class PhyphoxFile {
                     String unitY = getTranslatedAttribute("unitY");
                     String unitZ = getTranslatedAttribute("unitZ");
                     String unitYX = getTranslatedAttribute("unitYperX");
+                    String calibrationMode = getStringAttribute("calibrationMode");
 
                     Vector<Integer> colorScale = new Vector<>();
                     int colorStepIndex = 1;
@@ -1470,7 +1472,13 @@ public abstract class PhyphoxFile {
                             new ioBlockParser.ioMapping() {{name = "x"; asRequired = true; minCount = 0; maxCount = 0; valueAllowed = false; repeatableOffset = 1;}},
                             new ioBlockParser.ioMapping() {{name = "z"; asRequired = true; minCount = 0; maxCount = 0; valueAllowed = false; repeatableOffset = 2;}}
                     };
-                    (new ioBlockParser(xpp, experiment, parent, inputs, null, inputMapping, null, "axis", ats)).process(); //Load inputs and outputs
+
+                    ioBlockParser.ioMapping[] outputMapping = {
+                            new ioBlockParser.ioMapping() {{ name = "slope"; asRequired = false; minCount = 0; maxCount = 0; valueAllowed = false; repeatableOffset = 0;}},
+                            new ioBlockParser.ioMapping() {{ name = "intercept"; asRequired = false; minCount = 0; maxCount = 0; valueAllowed = false; repeatableOffset = 0;}}
+                    };
+
+                    (new ioBlockParser(xpp, experiment, parent, inputs, outputs, inputMapping, outputMapping, "axis", ats)).process(); //Load inputs and outputs
 
                     Vector<String> inStrings = new Vector<>();
                     for (int i = 0; i < inputs.size(); i++) {
@@ -1492,9 +1500,17 @@ public abstract class PhyphoxFile {
                         }
                     }
 
-                    ExpView.graphElement ge = newView.new graphElement(label, null, inStrings, parent.getResources()); //Two array inputs
-                    ge.setAspectRatio(aspectRatio); //Aspect ratio of the whole element area icluding axes
+                    Vector<String> outStrings = new Vector<>();
+                    for(int i=0; i < outputs.size(); i++){
+                        if(outputs.get(i) != null){
+                            outStrings.add(outputs.get(i).buffer.name);
+                        } else {
+                            outStrings.add(null);
+                        }
+                    }
 
+                    ExpView.graphElement ge = newView.new graphElement(label, visibility, outStrings, inStrings, parent.getResources()); //Two array inputs
+                    ge.setAspectRatio(aspectRatio); //Aspect ratio of the whole element area icluding axes
 
                     if (lineStyle != null) {
                         ge.setStyle(GraphView.styleFromStr(lineStyle));
@@ -1515,6 +1531,7 @@ public abstract class PhyphoxFile {
                     ge.setLogScale(logX, logY, logZ); //logarithmic scales for x/y axes
                     ge.setPrecision(xPrecision, yPrecision, zPrecision); //logarithmic scales for x/y axes
                     ge.setSuppressScientificNotation(suppressScientificNotation);
+                    ge.setCalibrationMode(SpectroscopyCalibrationManager.calibrationModeFromString(calibrationMode));
 
                     if (!globalColor) {
                         for (int i = 0; i < Math.ceil(ats.size() / 3); i++) {
@@ -1538,7 +1555,7 @@ public abstract class PhyphoxFile {
                         ioBlockParser.AdditionalTag at = ats.get(i);
                         if (at == null)
                             continue;
-                        if (!at.name.equals("input")) {
+                        if (!at.name.equals("input") && !at.name.equals("output") ) {
                             throw new phyphoxFileException("Unknown tag "+at.name+" found by ioBlockParser.", xpp.getLineNumber());
                         }
                         if (at.attributes.containsKey("style")) {
@@ -1589,7 +1606,7 @@ public abstract class PhyphoxFile {
                     };
                     (new ioBlockParser(xpp, experiment, parent, null, outputs, null, outputMapping, null)).process(); //Load inputs and outputs
 
-                    ExpView.editElement ie = newView.new editElement(label, outputs.get(0).buffer.name, null, parent.getResources()); //Ouput only
+                    ExpView.editElement ie = newView.new editElement(label, visibility, outputs.get(0).buffer.name, null, parent.getResources()); //Ouput only
                     ie.setUnit(unit); //A unit displayed next to the input box
                     ie.setFactor(factor); //A scaling factor. Mostly for matching units
                     ie.setSigned(signed); //May the entered number be negative?
@@ -1616,7 +1633,7 @@ public abstract class PhyphoxFile {
                     if (dynamicBuffer != null)
                         inStrings.add(dynamicBuffer);
 
-                    ExpView.buttonElement be = newView.new buttonElement(label, null, inStrings, parent.getResources()); //This one is user-event driven and does not regularly read or write values
+                    ExpView.buttonElement be = newView.new buttonElement(label, visibility, null, inStrings, parent.getResources()); //This one is user-event driven and does not regularly read or write values
                     be.setIO(inputs, outputs);
                     Vector<String> triggers = new Vector<>();
                     for (ioBlockParser.AdditionalTag at : ats) {
@@ -1666,7 +1683,7 @@ public abstract class PhyphoxFile {
                 case "depth-gui": {
                     //GUI for the depth input (LiDAR/ToF)
                     double aspectRatio = getDoubleAttribute("aspectRatio", 2.5);
-                    ExpView.depthGuiElement dge = newView.new depthGuiElement(label, null, null, parent.getResources()); //Two array inputs
+                    ExpView.depthGuiElement dge = newView.new depthGuiElement(label, visibility,null, null, parent.getResources()); //Two array inputs
                     dge.setAspectRatio(aspectRatio);
                     newView.elements.add(dge);
                     break;
@@ -1676,7 +1693,7 @@ public abstract class PhyphoxFile {
                     if (src == null || src.isEmpty())
                         throw new phyphoxFileException("Image element requires src attribute.", xpp.getLineNumber());
 
-                    ExpView.imageElement img = newView.new imageElement(null, null, parent.getResources(), src); //No inputs (for now?)
+                    ExpView.imageElement img = newView.new imageElement(null, visibility,null, parent.getResources(), src); //No inputs (for now?)
 
                     float scale = (float)getDoubleAttribute("scale", 1.0);
                     img.setScale(scale);
@@ -1738,7 +1755,7 @@ public abstract class PhyphoxFile {
                     RGB markOverexposure = getColorAttribute("markOverexposure", null);
                     RGB markUnderexposure = getColorAttribute("markUnderexposure", null);
 
-                    ExpView.cameraElement cameraElement = newView.new cameraElement(label, null, null, parent.getResources());
+                    ExpView.cameraElement cameraElement = newView.new cameraElement(label, visibility, null, null, parent.getResources());
                     cameraElement.applyControlSettings(showCameraControls, exposureAdjustmentLevel);
                     cameraElement.setPreviewParameters(grayscale, markOverexposure, markUnderexposure);
                     newView.elements.add(cameraElement);
@@ -1755,7 +1772,7 @@ public abstract class PhyphoxFile {
                     (new ioBlockParser(xpp, experiment, parent, null, outputs, null, outputMapping, null)).process(); //Load inputs and outputs
 
 
-                    ExpView.toggleElement toggleElement = newView.new toggleElement(label, outputs.get(0).buffer.name, null, parent.getResources());
+                    ExpView.toggleElement toggleElement = newView.new toggleElement(label, visibility, outputs.get(0).buffer.name, null, parent.getResources());
                     toggleElement.setDefaultValue(defaultValue);
                     newView.elements.add(toggleElement);
                     break;
@@ -1772,7 +1789,7 @@ public abstract class PhyphoxFile {
                     };
                     (new ioBlockParser(xpp, experiment, parent, null, outputs, null, outputMapping, null, ats)).process(); //Load inputs and outputs
 
-                    ExpView.dropDownElement dropDownElement = newView.new dropDownElement(label, outputs.get(0).buffer.name, null, parent.getResources());
+                    ExpView.dropDownElement dropDownElement = newView.new dropDownElement(label, visibility, outputs.get(0).buffer.name, null, parent.getResources());
                     dropDownElement.setDefaultValue(defaultValue);
                     dropDownElement.setColor(color);
                     for(ioBlockParser.AdditionalTag at: ats){
@@ -1828,7 +1845,7 @@ public abstract class PhyphoxFile {
                         outStrings.add(outputs.get(1).buffer.name);
                     }
 
-                    ExpView.sliderElement sliderElement = newView.new sliderElement(label, outStrings, null, parent.getResources());
+                    ExpView.sliderElement sliderElement = newView.new sliderElement(label, visibility, outStrings, null, parent.getResources());
                     sliderElement.setDefaultValue(defaultValue);
                     sliderElement.setColor(color);
                     sliderElement.setMinValue(minValue);
@@ -2118,6 +2135,10 @@ public abstract class PhyphoxFile {
                                 feature = CameraInput.PhyphoxCameraFeature.Photometric;
                                 break;
                             }
+                            case "spectroscopy": {
+                                feature = CameraInput.PhyphoxCameraFeature.Spectroscopy;
+                                break;
+                            }
                             default: {
                                 throw new phyphoxFileException("Unknown feature name: " + featureStr, xpp.getLineNumber());
                             }
@@ -2152,6 +2173,7 @@ public abstract class PhyphoxFile {
                                 new ioBlockParser.ioMapping() {{name = "shutterSpeed"; asRequired = true; minCount = 0; maxCount = 1; valueAllowed = false;}},
                                 new ioBlockParser.ioMapping() {{name = "iso"; asRequired = true; minCount = 0; maxCount = 1; valueAllowed = false;}},
                                 new ioBlockParser.ioMapping() {{name = "aperture"; asRequired = true; minCount = 0; maxCount = 1; valueAllowed = false;}},
+                                new ioBlockParser.ioMapping() {{name = "pixelPosition"; asRequired = true; minCount = 0; maxCount = 1; valueAllowed = false;}},
                         };
 
                         //String availableCameraSettings = getStringAttribute("setting");

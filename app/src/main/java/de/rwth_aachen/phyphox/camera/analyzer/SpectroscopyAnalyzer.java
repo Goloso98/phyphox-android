@@ -1,0 +1,357 @@
+package de.rwth_aachen.phyphox.camera.analyzer;
+
+import static android.opengl.GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
+import static de.rwth_aachen.phyphox.camera.analyzer.LuminanceAnalyzer.lumaFragmentShader;
+import static de.rwth_aachen.phyphox.camera.analyzer.LuminanceAnalyzer.luminanceFragmentShader;
+import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.buildProgram;
+import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.checkGLError;
+import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.fullScreenVboTexCoordinates;
+import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.fullScreenVboVertices;
+import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.fullScreenVertexShader;
+import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.interpolatingHeightFullScreenVertexShader;
+import static de.rwth_aachen.phyphox.camera.analyzer.OpenGLHelper.interpolatingWidthFullScreenVertexShader;
+
+import android.graphics.RectF;
+import android.opengl.EGL14;
+import android.opengl.EGLSurface;
+import android.opengl.GLES20;
+import android.util.Log;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+
+import de.rwth_aachen.phyphox.DataBuffer;
+import de.rwth_aachen.phyphox.camera.model.CameraSettingState;
+
+public class SpectroscopyAnalyzer extends AnalyzingModule{
+
+    final static String verticalHeightReductionFragmentShader =
+            "precision highp float;" +
+                    "uniform sampler2D texture;" +
+                    "varying vec2 texPosition1;" +
+                    "varying vec2 texPosition2;" +
+                    "varying vec2 texPosition3;" +
+                    "varying vec2 texPosition4;" +
+                    "void main () {" +
+                    "   vec4 result = texture2D(texture, texPosition1);" +
+                    "   if (texPosition2.y <= 1.0)" +
+                    "       result += texture2D(texture, texPosition2);" +
+                    "   if (texPosition3.y <= 1.0)" +
+                    "       result += texture2D(texture, texPosition3);" +
+                    "   if (texPosition4.y <= 1.0)" +
+                    "       result += texture2D(texture, texPosition4);" +
+                    "   float overflow = floor(result.g);" +
+                    "   result.g = result.g - overflow;" +
+                    "   result.r = result.r + overflow / 255.0;" +
+                    "   result.b = result.b / 4.0;" +
+                    "   gl_FragColor = result;" +
+                    "}";
+
+    final static String verticalWidthReductionFragmentShader =
+            "precision highp float;" +
+                    "uniform sampler2D texture;" +
+                    "varying vec2 texPosition1;" +
+                    "varying vec2 texPosition2;" +
+                    "varying vec2 texPosition3;" +
+                    "varying vec2 texPosition4;" +
+                    "void main () {" +
+                    "   vec4 result = texture2D(texture, texPosition1);" +
+                    "   if (texPosition2.x <= 1.0)" +
+                    "       result += texture2D(texture, texPosition2);" +
+                    "   if (texPosition3.x <= 1.0)" +
+                    "       result += texture2D(texture, texPosition3);" +
+                    "   if (texPosition4.x <= 1.0)" +
+                    "       result += texture2D(texture, texPosition4);" +
+                    "   float overflow = floor(result.g);" +
+                    "   result.g = result.g - overflow;" +
+                    "   result.r = result.r + overflow / 255.0;" +
+                    "   result.b = result.b / 4.0;" +
+                    "   gl_FragColor = result;" +
+                    "}";
+
+
+
+    boolean linear = false;
+    DataBuffer out;
+    DataBuffer pixelPosition;
+
+    int spectroscopyProgram, verticalReductionProgram;
+    int spectroscopyProgramVerticesHandle, spectroscopyProgramTexCoordinatesHandle;
+    int spectroscopyProgramCamMatrixHandle, spectroscopyProgramTextureHandle;
+    int spectroscopyProgramPassepartoutMinHandle, spectroscopyProgramPassepartoutMaxHandle;
+
+    int reductionProgramVerticesHandle, reductionProgramTexCoordinatesHandle;
+    int reductionProgramTextureHandle, reductionResSourceHandle, reductionResTargetHandle;
+
+    double[] latestResult = null;
+    int outputWidth = 0;
+
+    ByteBuffer resultBuffer = null;
+    int resultBufferSize = 0;
+
+    private SpectrumOrientation analysisSpectrumOrientation;
+
+    public SpectroscopyAnalyzer(DataBuffer out, DataBuffer pixelPosition, boolean linear, SpectrumOrientation analysisSpectrumOrientation){
+        super();
+        this.linear = linear;
+        this.out = out;
+        this.pixelPosition = pixelPosition;
+        this.analysisSpectrumOrientation = analysisSpectrumOrientation;
+    }
+
+    public void setAnalysisSpectrumOrientation(SpectrumOrientation analysisSpectrumOrientation) {
+        this.analysisSpectrumOrientation = analysisSpectrumOrientation;
+    }
+
+    @Override
+    protected void configureDownSampling() {
+        nDownsampleSteps = 4;
+    }
+
+    @Override
+    protected void calculateStepDimensions(int i) {
+        boolean isHorizontalSpectrum = isDispersionHorizontal();
+
+        if (isHorizontalSpectrum ) {
+            wDownsampleStep[i] = analyzerConfig.width(); // Keep width, shrink height
+            int prevH = (i == 0) ? analyzerConfig.height() : hDownsampleStep[i - 1];
+            hDownsampleStep[i] = (prevH + 3) / 4;
+        } else {
+            hDownsampleStep[i] = analyzerConfig.height(); // Keep height, shrink width
+            int prevW = (i == 0) ? analyzerConfig.width() : wDownsampleStep[i - 1];
+            wDownsampleStep[i] = (prevW + 3) / 4;
+        }
+    }
+
+    @Override
+    public void prepare() {
+        // Prepare spectroscopy conversion program
+        spectroscopyProgram = buildProgram(fullScreenVertexShader, linear ? luminanceFragmentShader : lumaFragmentShader);
+        spectroscopyProgramVerticesHandle = GLES20.glGetAttribLocation(spectroscopyProgram, "vertices");
+        spectroscopyProgramTexCoordinatesHandle = GLES20.glGetAttribLocation(spectroscopyProgram, "texCoordinates");
+        spectroscopyProgramCamMatrixHandle = GLES20.glGetUniformLocation(spectroscopyProgram, "camMatrix");
+        spectroscopyProgramTextureHandle = GLES20.glGetUniformLocation(spectroscopyProgram, "texture");
+        spectroscopyProgramPassepartoutMinHandle = GLES20.glGetUniformLocation(spectroscopyProgram, "passepartoutMin");
+        spectroscopyProgramPassepartoutMaxHandle = GLES20.glGetUniformLocation(spectroscopyProgram, "passepartoutMax");
+
+        if(isDispersionHorizontal()){
+            verticalReductionProgram = buildProgram(interpolatingHeightFullScreenVertexShader, verticalHeightReductionFragmentShader);
+        } else {
+            verticalReductionProgram = buildProgram(interpolatingWidthFullScreenVertexShader, verticalWidthReductionFragmentShader);
+        }
+
+        reductionProgramVerticesHandle = GLES20.glGetAttribLocation(verticalReductionProgram, "vertices");
+        reductionProgramTexCoordinatesHandle = GLES20.glGetAttribLocation(verticalReductionProgram, "texCoordinates");
+        reductionProgramTextureHandle = GLES20.glGetUniformLocation(verticalReductionProgram, "texture");
+        reductionResSourceHandle = GLES20.glGetUniformLocation(verticalReductionProgram, "resSource");
+        reductionResTargetHandle = GLES20.glGetUniformLocation(verticalReductionProgram, "resTarget");
+
+        checkGLError("SpectroscopyAnalyzer: prepare");
+    }
+
+    private boolean isDispersionHorizontal() {
+        return analysisSpectrumOrientation == SpectrumOrientation.HORIZONTAL_BLUE_RIGHT ||
+                analysisSpectrumOrientation == SpectrumOrientation.HORIZONTAL_RED_RIGHT;
+    }
+    @Override
+    public void analyze(float[] camMatrix, RectF passepartout) {
+        // --- Phase 1: OpenGL Drawing/Downsampling ---
+        drawLuminance(camMatrix, passepartout);
+
+        for(int i = 0; i < nDownsampleSteps; i++){
+            drawVerticalReduction(i, camMatrix);
+        }
+
+        // --- Phase 2: Setup and GL Read ---
+
+        int outW = wDownsampleStep[nDownsampleSteps -1];
+        int outH = hDownsampleStep[nDownsampleSteps -1];
+
+        if (resultBuffer == null || resultBufferSize != outW * outH) {
+            resultBufferSize = outW * outH;
+            resultBuffer = ByteBuffer.allocateDirect(resultBufferSize * 4).order(ByteOrder.nativeOrder());
+        }
+        resultBuffer.rewind();
+
+        // Read pixels from the OpenGL framebuffer
+        GLES20.glReadPixels(0, 0, outW, outH, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, resultBuffer);
+        resultBuffer.rewind();
+
+        byte[] bytes = new byte[resultBuffer.remaining()];
+        resultBuffer.get(bytes);
+
+        // --- Phase 3: Processing ---
+
+        final boolean isHorizontal = isDispersionHorizontal();
+        // Define which dimension is the dispersion (length) and which is the averaging (width)
+        final int dispersionLength = isHorizontal ? outW : outH;
+        final int averagingWidth = isHorizontal ? outH : outW;
+
+        // The normalization factor is applied to all sums
+        final double normalizationFactor = (double) (averagingWidth * Math.pow(4, nDownsampleSteps));
+
+        double[] dispersionSums = new double[dispersionLength];
+
+        for (int pixelIndex = 0; pixelIndex < bytes.length / 4 ; pixelIndex++) {
+            int byteIndex = pixelIndex * 4;
+            int r = bytes[byteIndex] & 0xff;
+            int g = bytes[byteIndex+1] & 0xff;
+            long luminance  = (r << 8) + g;
+
+            // Calculate the index along the dispersion axis
+            int dispersionIndex = isHorizontal ? (pixelIndex % outW) : (pixelIndex / outW);
+
+            dispersionSums[dispersionIndex] += (double) luminance;
+        }
+
+        // Normalize the final aggregated sums by the factor
+        for (int i = 0; i < dispersionLength; i++) {
+            dispersionSums[i] /= normalizationFactor;
+        }
+
+        // Calculate the normalized passepartout boundaries
+        final float normalizedYMin = 1.0f - Math.min(passepartout.top, passepartout.bottom);
+        final float normalizedYMax = 1.0f - Math.max(passepartout.top, passepartout.bottom);
+
+        final float normalizedXMin = 1.0f - Math.min(passepartout.left, passepartout.right);
+        final float normalizedXMax = 1.0f - Math.max(passepartout.left, passepartout.right);
+
+        // Calculate the region of interest indices
+        int roiStartIndex = (int) ((isHorizontal? normalizedYMax : normalizedXMax) * dispersionLength);
+        int roiEndIndex = (int) ((isHorizontal? normalizedYMin : normalizedXMin) * dispersionLength);
+
+        // Clamp indices to safe bounds
+        roiStartIndex = Math.max(0, Math.min(roiStartIndex, dispersionSums.length));
+        roiEndIndex = Math.max(0, Math.min(roiEndIndex, dispersionSums.length));
+
+        if (roiStartIndex < roiEndIndex) {
+            latestResult = Arrays.copyOfRange(dispersionSums, roiStartIndex, roiEndIndex);
+        } else {
+            // Handle edge case where indices might be flipped or equal
+            latestResult = Arrays.copyOfRange(dispersionSums, roiEndIndex, roiStartIndex);
+        }
+
+    }
+
+    @Override
+    public void writeToBuffers(CameraSettingState state) {
+        double exposureFactor = linear ?
+                Math.pow(2.0, state.getCurrentApertureValue())/2.0 * 100.0/state.getCurrentIsoValue() *
+                        (1.0e9/60.0) / state.getCurrentShutterValue() : 1.0;
+
+        out.clear(true);
+        pixelPosition.clear(true); // Clear pixel position buffer too
+
+        if (latestResult != null) {
+            // Check if the resulting array needs to be reversed so that
+            // the pixel position always increases from Blue (Short-Wavelength) to Red (Long-Wavelength).
+            boolean reverseResult = analysisSpectrumOrientation == SpectrumOrientation.VERTICAL_RED_UP ||
+                    analysisSpectrumOrientation == SpectrumOrientation.HORIZONTAL_BLUE_RIGHT;
+
+            double[] finalResult = latestResult;
+            if (reverseResult) {
+                finalResult = new double[latestResult.length];
+                for (int i = 0; i < latestResult.length; i++) {
+                    finalResult[i] = latestResult[latestResult.length - 1 - i];
+                }
+            }
+
+            for (int i = 0; i < finalResult.length; i++) {
+                pixelPosition.append(i);
+                out.append(finalResult[i] * exposureFactor);
+            }
+        }
+
+        latestResult = null;
+    }
+
+    public void makeCurrent(EGLSurface eglSurface, int w, int h) {
+        if (!EGL14.eglMakeCurrent(analyzerConfig.eglDisplay(), eglSurface, eglSurface, analyzerConfig.eglContext())) {
+            throw new RuntimeException("Camera preview: eglMakeCurrent failed");
+        }
+        GLES20.glViewport(0, 0, w, h);
+    }
+
+    void drawLuminance(float[] camMatrix, RectF passepartout) {
+        makeCurrent(analyzingSurface, analyzerConfig.width(), analyzerConfig.height());
+
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+
+        // Calculate scissor rect
+        int scissorX = (int)Math.floor(analyzerConfig.width() *(1.0-Math.max(passepartout.top, passepartout.bottom)));
+        int scissorY = (int)Math.floor(analyzerConfig.height() *(1.0-Math.max(passepartout.left, passepartout.right)));
+        int scissorW = (int)Math.ceil(analyzerConfig.width() *Math.abs(passepartout.height()));
+        int scissorH = (int)Math.ceil(analyzerConfig.height() *Math.abs(passepartout.width()));
+
+        GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
+        GLES20.glScissor(scissorX, scissorY, scissorW, scissorH);
+
+        GLES20.glUseProgram(spectroscopyProgram);
+
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, fullScreenVboVertices);
+        GLES20.glEnableVertexAttribArray(spectroscopyProgramVerticesHandle);
+        GLES20.glVertexAttribPointer(spectroscopyProgramVerticesHandle, 2, GLES20.GL_FLOAT, false, 0, 0);
+
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, fullScreenVboTexCoordinates);
+        GLES20.glEnableVertexAttribArray(spectroscopyProgramTexCoordinatesHandle);
+        GLES20.glVertexAttribPointer(spectroscopyProgramTexCoordinatesHandle, 2, GLES20.GL_FLOAT, false, 0, 0);
+
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glBindTexture(GL_TEXTURE_EXTERNAL_OES, analyzerConfig.cameraTexture());
+        GLES20.glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
+        GLES20.glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+        GLES20.glUniform1i(spectroscopyProgramTextureHandle, 0);
+
+        GLES20.glUniform2f(spectroscopyProgramPassepartoutMinHandle, passepartout.left, passepartout.top);
+        GLES20.glUniform2f(spectroscopyProgramPassepartoutMaxHandle, passepartout.right, passepartout.bottom);
+
+        GLES20.glUniformMatrix4fv(spectroscopyProgramCamMatrixHandle, 1, false, camMatrix, 0);
+
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+
+        GLES20.glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+        GLES20.glDisableVertexAttribArray(spectroscopyProgramVerticesHandle);
+        GLES20.glDisableVertexAttribArray(spectroscopyProgramTexCoordinatesHandle);
+
+        GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
+
+        checkGLError("draw luminance");
+    }
+
+    void drawVerticalReduction(int step, float[] camMatrix) {
+        makeCurrent(downsampleSurfaces[step], wDownsampleStep[step], hDownsampleStep[step]);
+
+        GLES20.glUseProgram(verticalReductionProgram);
+
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, fullScreenVboVertices);
+        GLES20.glEnableVertexAttribArray(reductionProgramVerticesHandle);
+        GLES20.glVertexAttribPointer(reductionProgramVerticesHandle, 2, GLES20.GL_FLOAT, false, 0, 0);
+
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, fullScreenVboTexCoordinates);
+        GLES20.glEnableVertexAttribArray(reductionProgramTexCoordinatesHandle);
+        GLES20.glVertexAttribPointer(reductionProgramTexCoordinatesHandle, 2, GLES20.GL_FLOAT, false, 0, 0);
+
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, downsamplingTextures[step]);
+        EGL14.eglBindTexImage(analyzerConfig.eglDisplay(), (step == 0) ? analyzingSurface : downsampleSurfaces[step-1], EGL14.EGL_BACK_BUFFER);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glUniform1i(reductionProgramTextureHandle, 0);
+
+        GLES20.glUniform2f(reductionResSourceHandle, step == 0 ? analyzerConfig.width() : wDownsampleStep[step-1], step == 0 ? analyzerConfig.height() : hDownsampleStep[step-1]);
+        GLES20.glUniform2f(reductionResTargetHandle, wDownsampleStep[step], hDownsampleStep[step]);
+
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+        EGL14.eglReleaseTexImage(analyzerConfig.eglDisplay(), (step == 0) ? analyzingSurface : downsampleSurfaces[step-1], EGL14.EGL_BACK_BUFFER);
+        GLES20.glDisableVertexAttribArray(reductionProgramVerticesHandle);
+        GLES20.glDisableVertexAttribArray(reductionProgramTexCoordinatesHandle);
+
+        checkGLError("vertical reduction");
+    }
+}

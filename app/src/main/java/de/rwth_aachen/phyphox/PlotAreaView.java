@@ -1,11 +1,11 @@
 package de.rwth_aachen.phyphox;
 
 import android.content.Context;
-import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.graphics.SurfaceTexture;
 import android.opengl.GLES20;
 import android.opengl.Matrix;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.TextureView;
@@ -91,6 +91,14 @@ class GraphSetup implements Serializable {
     public boolean linearTime = false;
     public boolean hideTimeMarkers = false;
 
+    private onRenderedPlotResizedListener onRenderedPlotResizedListener;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    // A Callback that execute and update the height of the calibration marker.
+    public interface onRenderedPlotResizedListener {
+        void onSurfaceResized(int graphHeight);
+    }
+
     GraphSetup() {
         plotBoundL = 0;
         plotBoundT = 0;
@@ -124,6 +132,15 @@ class GraphSetup implements Serializable {
         plotBoundT = Math.round(t);
         plotBoundW = Math.round(w);
         plotBoundH = Math.round(h);
+
+        // Notify the listener on UI thread so that the listener gets the updated rendered height of the plot.
+        if (onRenderedPlotResizedListener != null) {
+            mainHandler.post(() -> onRenderedPlotResizedListener.onSurfaceResized(plotBoundH));
+        }
+    }
+
+    public void setOnRenderedPlotResizedListener(onRenderedPlotResizedListener listener) {
+        this.onRenderedPlotResizedListener = listener;
     }
 
     public void setZAxisBounds(float l, float t, float w, float h) {
@@ -251,6 +268,10 @@ class PlotRenderer extends Thread implements TextureView.SurfaceTextureListener 
     private SurfaceTexture newSurface = null;
 
     private GraphSetup graphSetup = null;
+
+    public GraphSetup getGraphSetup() {
+        return graphSetup;
+    }
 
     int h, w;
     int bgColor;
@@ -1286,6 +1307,14 @@ class PlotRenderer extends Thread implements TextureView.SurfaceTextureListener 
         }
     }
 
+    public int getPlotBoundH(){
+        return graphSetup.plotBoundH;
+    }
+
+    public int getPlotBoundT(){
+        return graphSetup.plotBoundT;
+    }
+
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture st, int width, int height) {
         synchronized (lock) {
@@ -1296,6 +1325,7 @@ class PlotRenderer extends Thread implements TextureView.SurfaceTextureListener 
         }
     }
 
+    public boolean pendingMarkerUpdate = false;
     @Override
     public void onSurfaceTextureSizeChanged(SurfaceTexture st, int width, int height) {
         synchronized (lock) {
