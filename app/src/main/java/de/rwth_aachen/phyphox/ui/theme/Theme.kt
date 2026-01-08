@@ -54,6 +54,7 @@ data class PhyphoxColors(
 
 val LocalPhyphoxColors = staticCompositionLocalOf { PhyphoxColors() }
 
+@Suppress("Unused", "UnusedReceiverParameter")
 val MaterialTheme.customColors: PhyphoxColors
     @Composable
     @ReadOnlyComposable
