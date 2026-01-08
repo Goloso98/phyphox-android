@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -96,6 +97,7 @@ android {
 
     buildFeatures {
         buildConfig = true
+        compose = true
     }
 
     ndkVersion = "28.0.13004108"
@@ -127,11 +129,20 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
 
+    // Compose
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.bundles.compose)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
     add("androidTestScreenshotImplementation", libs.junit)
     add("androidTestScreenshotImplementation", libs.fastlane.screengrab)
     add("androidTestScreenshotImplementation", libs.androidx.test.rules)
     add("androidTestScreenshotImplementation", libs.androidx.test.ext.junit)
     add("androidTestScreenshotImplementation", libs.androidx.test.espresso.core)
+
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 
     testImplementation(libs.junit)
     testImplementation(libs.google.truth)
