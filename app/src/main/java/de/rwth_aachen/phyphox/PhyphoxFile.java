@@ -1673,7 +1673,7 @@ public abstract class PhyphoxFile {
                         if(buffer == null){
                             throw new phyphoxFileException("Could not parse buffer with name " + dynamicBuffer, xpp.getLineNumber());
                         }
-                        be.setBuffer(buffer);
+                        be.setDynamicBuffer(buffer);
                     }
 
                     be.setTriggers(triggers);

@@ -221,6 +221,25 @@ public class RemoteServer {
                             sb.append("\"");
                         }
                     }
+                    if(element.visibility != null){
+                        if(!element.inputs.isEmpty()){
+                            sb.append(",");
+                        }
+
+                        sb.append("\"");
+                        sb.append(element.visibility.replace("\"", "\\\""));
+                        sb.append("\"");
+                    }
+                    sb.append("],\"dataInputFunction\":\n");
+                    sb.append(element.setDataHTML());
+                    sb.append("\n");
+                }
+
+                if(element.visibility != null && element.inputs == null){
+                    sb.append(",\"dataInput\":[");
+                    sb.append("\"");
+                    sb.append(element.visibility.replace("\"", "\\\""));
+                    sb.append("\"");
                     sb.append("],\"dataInputFunction\":\n");
                     sb.append(element.setDataHTML());
                     sb.append("\n");
