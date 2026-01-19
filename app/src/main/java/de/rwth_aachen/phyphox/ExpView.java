@@ -2023,7 +2023,8 @@ public class ExpView implements Serializable{
             sb.append("         var graphElement = document.getElementById(\"element"+htmlID+"\");");
             sb.append("         if (elementVisibilityIndicator <= 0.0 || elementVisibilityIndicator.length == 0) {");
             sb.append("             graphElement.style.display = \"none\";");
-            sb.append("             leaveExclusive();");
+            sb.append("             if ((graphElement.classList && graphElement.classList.contains(\"exclusive\")) || (graphElement.className.indexOf(\"exclusive\") > -1)) {;");
+            sb.append("             leaveExclusive(); }");
             sb.append("         } else {");
             sb.append("             graphElement.style.display = \"block\";");
             sb.append("         }");
