@@ -247,6 +247,10 @@ public class ExpView implements Serializable{
         //              onMayWriteToBuffers
         protected abstract String getUpdateMode();
 
+        protected String getVisibilityUpdateMode() {
+            return "single";
+        }
+
         //This function returns a JavaScript function. The argument of this function will receive
         //an array that contains fresh data to be shown to the user.
         protected String setDataHTML() {
@@ -755,10 +759,11 @@ public class ExpView implements Serializable{
 
             sb.append("     if (data.hasOwnProperty(\""+visibility+"\")) {");
             sb.append("         var elementVisibilityIndicator = data[\""+visibility+"\"][\"data\"][data[\"" + visibility + "\"][\"data\"].length-1];");
+            sb.append("         var valueMainElement = document.getElementById(\"element"+htmlID+"\");");
             sb.append("         if (elementVisibilityIndicator <= 0.0 || elementVisibilityIndicator.length == 0) {");
-            sb.append("             valueElement.style.display = \"none\";");
+            sb.append("             valueMainElement.style.display = \"none\";");
             sb.append("         } else {");
-            sb.append("             valueElement.style.display = \"block\";");
+            sb.append("             valueMainElement.style.display = \"block\";");
             sb.append("         }");
             sb.append("     }");
 
@@ -802,7 +807,7 @@ public class ExpView implements Serializable{
         @Override
         //This does not display anything. Do not update.
         protected String getUpdateMode() {
-            return "single";
+            return "none";
         }
 
         @Override
@@ -1295,14 +1300,10 @@ public class ExpView implements Serializable{
         @Override
         //This is not automatically updated, but triggered by the user, so it's "none"
         protected String getUpdateMode() {
-            String updatedMode = "single";
             if(dynamicBuffer == null){
-                updatedMode = "none";
+                return "none";
             }
-            if(visibility != null){
-                updatedMode = "single";
-            }
-            return updatedMode;
+            return "single";
         }
 
         @Override
@@ -2453,7 +2454,7 @@ public class ExpView implements Serializable{
 
         @Override
         protected String getUpdateMode() {
-             return "single";
+             return "none";
         }
 
         @Override
@@ -2666,7 +2667,7 @@ public class ExpView implements Serializable{
         @Override
         //Create the HTML markup. We do not stream the video to the web interface, so this is just a placeholder and notification
         protected String createViewHTML(){
-            return "<div style=\"font-size: 105%;\" class=\"graphElement\" id=\"" + htmlID + "\"><span class=\"label\" onclick=\"toggleExclusive("+htmlID+");\">"+this.label+"</span><div class=\"warningIcon\" onclick=\"alert('"+ warningText + "')\"></div></div>";
+            return "<div style=\"font-size: 105%;\" class=\"graphElement\" id=\"element" + htmlID + "\"><span class=\"label\" onclick=\"toggleExclusive("+htmlID+");\">"+this.label+"</span><div class=\"warningIcon\" onclick=\"alert('"+ warningText + "')\"></div></div>";
         }
 
         @Override
@@ -2770,7 +2771,7 @@ public class ExpView implements Serializable{
         @Override
         //This does not display anything. Do not update.
         protected String getUpdateMode() {
-            return "single";
+            return "none";
         }
 
         @Override
@@ -2988,12 +2989,12 @@ public class ExpView implements Serializable{
         @Override
         //Create the HTML markup. We do not stream the video to the web interface, so this is just a placeholder and notification
         protected String createViewHTML(){
-            return "<div style=\"font-size: 105%;\" class=\"graphElement\" id=\"" + htmlID + "\"><span class=\"label\" onclick=\"toggleExclusive("+htmlID+");\">"+this.label+"</span><div class=\"warningIcon\" onclick=\"alert('"+ warningText + "')\"></div></div>";
+            return "<div style=\"font-size: 105%;\" class=\"cameraElement\" id=\"element" + htmlID + "\"><span class=\"label\" onclick=\"toggleExclusive("+htmlID+");\">"+this.label+"</span><div class=\"warningIcon\" onclick=\"alert('"+ warningText + "')\"></div></div>";
         }
 
         @Override
         protected String getUpdateMode() {
-            return "single";
+            return "none";
         }
 
         @Override
