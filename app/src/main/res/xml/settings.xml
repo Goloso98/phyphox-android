@@ -67,6 +67,13 @@
             android:summary="@string/settingsProximityLockDetail"
             android:persistent="true"
             android:defaultValue="false" />
+        <androidx.preference.SwitchPreference
+            android:key="backgroundMode"
+            android:title="@string/settingsBackgroundMode"
+            android:icon="@drawable/play"
+            android:summary="@string/settingsBackgroundModeDetail"
+            android:persistent="true"
+            android:defaultValue="false" />
 
     </androidx.preference.PreferenceCategory>
 

@@ -7,12 +7,14 @@ import static de.rwth_aachen.phyphox.Helper.DataExportUtility.MIME_TYPE_PHYPHOX;
 import static de.rwth_aachen.phyphox.Helper.DataExportUtility.REQUEST_WRITE_EXTERNAL_STORAGE;
 
 import android.annotation.SuppressLint;
+import android.Manifest;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -29,6 +31,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.PowerManager;
 import android.provider.ContactsContract;
 import android.util.Log;
@@ -191,7 +194,35 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
     ImageView hintAnimation = null; //Reference to the animated part of the play-hint button
 
     boolean proximityLock = false;
+    boolean backgroundMode = false;
     PowerManager.WakeLock wakeLock = null;
+
+    // Background service handling
+    private ExperimentService experimentService;
+    private boolean serviceBound = false;
+    private boolean runningInBackground = false;
+
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            ExperimentService.ExperimentBinder binder = (ExperimentService.ExperimentBinder) service;
+            experimentService = binder.getService();
+            serviceBound = true;
+            experimentService.setCallback(() -> {
+                // Service was stopped (e.g., from notification)
+                runOnUiThread(() -> {
+                    runningInBackground = false;
+                    stopMeasurement();
+                });
+            });
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            serviceBound = false;
+            experimentService = null;
+        }
+    };
 
     PopupWindow popupWindow = null;
     AudioOutput audioOutput = null;
@@ -337,13 +368,45 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
             progress = null;
         }
 
-        stopRemoteServer(); //Remote server should stop when the app is not active
-        shutdownIO();
+        // If background mode is enabled and we're measuring, start the foreground service
+        if (backgroundMode && measuring && experiment != null && experiment.loaded) {
+            runningInBackground = true;
+            startBackgroundService();
+            // Don't stop the measurement or shutdown IO - keep running in background
+        } else {
+            stopRemoteServer(); //Remote server should stop when the app is not active
+            shutdownIO();
+        }
 
         if (popupWindow != null)
             popupWindow.dismiss();
 
         overridePendingTransition(R.anim.hold, R.anim.exit_experiment); //Make a nice animation...
+    }
+
+    private void startBackgroundService() {
+        ExperimentService.start(this, experiment != null ? experiment.title : getString(R.string.app_name));
+        Intent intent = new Intent(this, ExperimentService.class);
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void stopBackgroundService() {
+        if (serviceBound) {
+            unbindService(serviceConnection);
+            serviceBound = false;
+        }
+        ExperimentService.stop(this);
+        runningInBackground = false;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Make sure to unbind from the service
+        if (serviceBound) {
+            unbindService(serviceConnection);
+            serviceBound = false;
+        }
     }
 
     @Override
@@ -352,6 +415,11 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
         super.onRestart();
 
         shutdown = false; //Deactivate shutdown variable
+
+        // Stop the background service if it was running
+        if (runningInBackground) {
+            stopBackgroundService();
+        }
 
         if (experiment != null && experiment.depthInput != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             try {
@@ -662,10 +730,18 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
 
         settings =  PreferenceManager.getDefaultSharedPreferences(this);
         proximityLock = settings.getBoolean("proximityLock", false);
+        backgroundMode = settings.getBoolean("backgroundMode", false);
         if (proximityLock && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             PowerManager powerManager = (PowerManager) getBaseContext().getSystemService(Context.POWER_SERVICE);
             if (powerManager.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK))
                 wakeLock = powerManager.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "phyphox:measuring");
+        }
+
+        // Request notification permission for Android 13+
+        if (backgroundMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1002);
+            }
         }
 
         //All done. Almost. Now let's resolve anything the user needs to know or needs to decide
@@ -1610,6 +1686,11 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
     //Stop the measurement
     public void stopMeasurement() {
         measuring = false; //Set the state
+
+        // Stop background service if running
+        if (runningInBackground) {
+            stopBackgroundService();
+        }
 
         //Lift the restrictions, so the screen may turn off again and the user may rotate the device (unless remote server is active)
         if (!serverEnabled) {

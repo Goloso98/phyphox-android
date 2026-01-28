@@ -331,6 +331,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
     <string name="settingsHeadAdvanced">Advanced</string>
     <string name="settingsProximityLock">Proximity lock</string>
     <string name="settingsProximityLockDetail">Disable the screen when the proximity sensor is triggered to avoid unintended inputs for example in a pocket.</string>
+    <string name="settingsBackgroundMode">Run in background</string>
+    <string name="settingsBackgroundModeDetail">Keep experiments running when the app is in the background or the screen is off.</string>
     <string name="settingsPort">Remote access port</string>
     <string name="settings_theme_night">Default</string>
     <string name="settings_theme_no_night">Light mode </string>
@@ -451,4 +453,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
     <string name="common_musical_note_gb7">F#7 / Gb7</string>
     <string name="common_musical_note_g7">G7</string>
     <string name="common_musical_note_ab7">G#7 / Ab7</string>
+    <string name="notification_channel_name">Experiment Recording</string>
+    <string name="notification_channel_description">Shows when an experiment is recording data in the background</string>
+    <string name="notification_experiment_running">Experiment running</string>
+    <string name="notification_experiment_recording">Recording data in background</string>
 </resources>
