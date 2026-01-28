@@ -369,8 +369,9 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
             progress = null;
         }
 
-        // If background mode is enabled and we're measuring, start the foreground service
-        if (backgroundMode && measuring && experiment != null && experiment.loaded) {
+        // If background mode is enabled and we're measuring (or in timed run countdown), start the foreground service
+        boolean inTimedRunCountdown = (cdTimer != null && !measuring);
+        if (backgroundMode && (measuring || inTimedRunCountdown) && experiment != null && experiment.loaded) {
             runningInBackground = true;
             startBackgroundService();
             // Don't stop the measurement or shutdown IO - keep running in background
@@ -386,7 +387,12 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
     }
 
     private void startBackgroundService() {
-        ExperimentService.start(this, experiment != null ? experiment.title : getString(R.string.app_name));
+        String title = experiment != null ? experiment.title : getString(R.string.app_name);
+        // Add indicator if in timed run countdown
+        if (cdTimer != null && !measuring) {
+            title = title + " (" + getString(R.string.timed_start) + ")";
+        }
+        ExperimentService.start(this, title);
         Intent intent = new Intent(this, ExperimentService.class);
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
     }
@@ -442,9 +448,21 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
 
         shutdown = false; //Deactivate shutdown variable
 
-        // Stop the background service if it was running
+        // If we were running in background, just stop the service but keep measuring
         if (runningInBackground) {
-            stopBackgroundService();
+            // Clear the callback first so stopping the service doesn't stop the measurement
+            if (serviceBound && experimentService != null) {
+                experimentService.setCallback(null);
+            }
+            // Stop the background service notification, but DON'T stop the measurement
+            if (serviceBound) {
+                unbindService(serviceConnection);
+                serviceBound = false;
+            }
+            ExperimentService.stop(this);
+            runningInBackground = false;
+            experimentService = null;
+            // Measurement continues - we're back in foreground now
         }
 
         if (experiment != null && experiment.depthInput != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -1537,6 +1555,11 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
             acquireBackgroundWakeLock();
         }
 
+        // Update notification if running in background (e.g., after timed countdown finished)
+        if (runningInBackground && serviceBound && experimentService != null) {
+            experimentService.updateNotification(experiment != null ? experiment.title : getString(R.string.app_name));
+        }
+
         //Start the sensors
         try {
             experiment.startAllIO();
@@ -1624,6 +1647,11 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
     public void startTimedMeasurement() {
         //No more turning off during the measurement
         setKeepScreenOn(true);
+
+        // Acquire wake lock immediately for timed runs so countdown works with screen off
+        if (backgroundMode) {
+            acquireBackgroundWakeLock();
+        }
 
 	if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
             // check if all Bluetooth devices are connected and display an errorDialog if not

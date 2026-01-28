@@ -191,8 +191,11 @@ public class ExperimentService extends Service {
 
     public void stopExperimentService() {
         isRunning = false;
-        if (callback != null) {
-            callback.onServiceStopped();
+        // Only call callback if it's still set (won't be set if app returned to foreground)
+        ExperimentServiceCallback cb = callback;
+        callback = null; // Clear to prevent double-calls
+        if (cb != null) {
+            cb.onServiceStopped();
         }
         stopForeground(true);
         stopSelf();
