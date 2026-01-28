@@ -196,6 +196,7 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
     boolean proximityLock = false;
     boolean backgroundMode = false;
     PowerManager.WakeLock wakeLock = null;
+    PowerManager.WakeLock backgroundWakeLock = null; // Wake lock for background recording
 
     // Background service handling
     private ExperimentService experimentService;
@@ -399,6 +400,29 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
         runningInBackground = false;
     }
 
+    private void acquireBackgroundWakeLock() {
+        if (backgroundWakeLock == null) {
+            PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (powerManager != null) {
+                backgroundWakeLock = powerManager.newWakeLock(
+                        PowerManager.PARTIAL_WAKE_LOCK,
+                        "phyphox:background_recording"
+                );
+            }
+        }
+        if (backgroundWakeLock != null && !backgroundWakeLock.isHeld()) {
+            backgroundWakeLock.acquire();
+            Log.d("Experiment", "Background wake lock acquired");
+        }
+    }
+
+    private void releaseBackgroundWakeLock() {
+        if (backgroundWakeLock != null && backgroundWakeLock.isHeld()) {
+            backgroundWakeLock.release();
+            Log.d("Experiment", "Background wake lock released");
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -407,6 +431,8 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
             unbindService(serviceConnection);
             serviceBound = false;
         }
+        // Release background wake lock
+        releaseBackgroundWakeLock();
     }
 
     @Override
@@ -1505,6 +1531,12 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
         //Disable play-button highlight
         beforeStart = false;
 
+        // Acquire wake lock early if background mode is enabled
+        // This ensures sensors continue to receive data when screen is off
+        if (backgroundMode) {
+            acquireBackgroundWakeLock();
+        }
+
         //Start the sensors
         try {
             experiment.startAllIO();
@@ -1691,6 +1723,9 @@ public class Experiment extends AppCompatActivity implements View.OnClickListene
         if (runningInBackground) {
             stopBackgroundService();
         }
+
+        // Release background wake lock
+        releaseBackgroundWakeLock();
 
         //Lift the restrictions, so the screen may turn off again and the user may rotate the device (unless remote server is active)
         if (!serverEnabled) {

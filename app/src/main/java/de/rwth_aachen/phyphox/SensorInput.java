@@ -5,6 +5,8 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.util.Log;
 
@@ -16,6 +18,33 @@ import java.util.concurrent.locks.Lock;
 //The sensorInput class encapsulates a sensor, maps their name from the phyphox-file format to
 //  the android identifiers and handles their output, which is written to the dataBuffers
 public class SensorInput implements SensorEventListener, Serializable {
+
+    // Static handler thread for receiving sensor events in background
+    // Using a background thread ensures sensor delivery even when screen is off
+    private static HandlerThread sensorHandlerThread;
+    private static Handler sensorHandler;
+    private static int sensorHandlerRefCount = 0;
+
+    private static synchronized void acquireSensorHandler() {
+        sensorHandlerRefCount++;
+        if (sensorHandlerThread == null) {
+            sensorHandlerThread = new HandlerThread("SensorInputThread");
+            sensorHandlerThread.start();
+            sensorHandler = new Handler(sensorHandlerThread.getLooper());
+            Log.d("SensorInput", "Started sensor handler thread");
+        }
+    }
+
+    private static synchronized void releaseSensorHandler() {
+        sensorHandlerRefCount--;
+        if (sensorHandlerRefCount <= 0 && sensorHandlerThread != null) {
+            sensorHandlerThread.quitSafely();
+            sensorHandlerThread = null;
+            sensorHandler = null;
+            sensorHandlerRefCount = 0;
+            Log.d("SensorInput", "Stopped sensor handler thread");
+        }
+    }
 
     public int type; //Sensor type (Android identifier)
     public SensorName sensorName; //Sensor name (phyphox identifier)
@@ -301,10 +330,13 @@ public class SensorInput implements SensorEventListener, Serializable {
         this.strideCount = 0;
         lastOneTooFast = false;
 
+        // Use background handler for sensor registration to ensure delivery when screen is off
+        acquireSensorHandler();
+
         if (rateStrategy == SensorRateStrategy.request || rateStrategy == SensorRateStrategy.auto)
-            this.sensorManager.registerListener(this, sensor, (int)(period / 1000));
+            this.sensorManager.registerListener(this, sensor, (int)(period / 1000), sensorHandler);
         else
-            this.sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
+            this.sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST, sensorHandler);
     }
 
     //Stop the data acquisition by unregistering the listener for this sensor
@@ -312,6 +344,7 @@ public class SensorInput implements SensorEventListener, Serializable {
         if (sensor == null)
             return;
         this.sensorManager.unregisterListener(this);
+        releaseSensorHandler();
     }
 
     //This event listener is mandatory as this class implements SensorEventListener
